@@ -1,0 +1,37 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# PDP SALTI : fichiers générés à l'exécution (PDFs, signatures, uploads, etc.)
+# On versionne le DOSSIER mais pas son contenu (sauf le template).
+/storage/app/pdp/
+/database/database.sqlite
+/storage/app/test-output.pdf
+/storage/app/test-tcpdf.php
+
+# Garder le template officiel sous git
+!/storage/app/templates/
+!/storage/app/templates/*.pdf
