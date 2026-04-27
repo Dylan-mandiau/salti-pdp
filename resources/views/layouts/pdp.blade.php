@@ -9,18 +9,18 @@
     {{-- Tailwind via CDN : aucun build npm requis, déploiement = git pull + composer install --}}
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Charte SALTI : jaune #FFDD00 sur fond blanc, texte noir
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'salti-yellow': '#FFC72C',
-                        'salti-yellow-dark': '#E5B226',
+                        'salti-yellow': '#FFDD00',        // primaire
+                        'salti-yellow-dark': '#E6C700',   // hover / actif
                     }
                 }
             }
         }
     </script>
-
     {{-- Alpine.js pour l'interactivité légère --}}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -28,10 +28,15 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
 
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        /* Charte SALTI : jaune #FFDD00 / blanc / noir */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFFFF;
+            color: #000000;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900">
+<body class="min-h-screen bg-white text-black">
 
     @auth
     <nav class="bg-black text-white shadow">
