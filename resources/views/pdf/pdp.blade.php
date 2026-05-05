@@ -11,12 +11,33 @@
     $val = fn($v) => $v !== null && $v !== '' ? $v : '';
     /**
      * Affiche une date au format jj/mm/aaaa peu importe le format d'entrée.
-     * Accepte ISO (2026-05-07), français (07/05/2026), null, etc.
      */
     $date = function ($v) {
         if (empty($v)) return '';
         try { return \Carbon\Carbon::parse($v)->format('d/m/Y'); }
         catch (\Throwable $e) { return $v; }
+    };
+    /**
+     * Construit la durée affichable depuis duree_value + duree_unit.
+     * Fallback : valeur "duree" en string brute si présente (compat).
+     */
+    $duree = function () use ($data) {
+        $v = $data['operation']['duree_value'] ?? null;
+        $u = $data['operation']['duree_unit'] ?? null;
+        if ($v !== null && $v !== '' && !empty($u)) {
+            return trim($v.' '.$u);
+        }
+        return $data['operation']['duree'] ?? '';
+    };
+    /**
+     * Plage horaire au format "HH:MM - HH:MM" depuis plage_debut + plage_fin.
+     */
+    $plageHoraire = function () use ($data) {
+        $debut = $data['operation']['plage_debut'] ?? null;
+        $fin = $data['operation']['plage_fin'] ?? null;
+        if ($debut && $fin) return $debut.' - '.$fin;
+        if ($debut) return $debut;
+        return $data['operation']['plages_horaires'] ?? '';
     };
     $risques = $data['risques'] ?? [];
     $epi = $data['epi'] ?? [];
@@ -223,13 +244,13 @@
             <td>
                 <span class="field-value">{{ $date($data['operation']['date_debut'] ?? null) }}</span>
                 &nbsp;&nbsp;&nbsp;&nbsp;
-                Durée prévisible : <span class="field-value">{{ $val($data['operation']['duree'] ?? null) }}</span>
+                Durée prévisible : <span class="field-value">{{ $duree() }}</span>
             </td>
         </tr>
         <tr>
             <td>Plages horaires :</td>
             <td>
-                <span class="field-value">{{ $val($data['operation']['plages_horaires'] ?? null) }}</span>
+                <span class="field-value">{{ $plageHoraire() }}</span>
                 &nbsp;&nbsp;&nbsp;&nbsp;
                 Nombre de salariés affectés : <span class="field-value">{{ $val($data['operation']['nb_salaries'] ?? null) }}</span>
             </td>

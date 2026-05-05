@@ -19,10 +19,24 @@ use Illuminate\Support\Facades\Hash;
  */
 class AgenciesSeeder extends Seeder
 {
+    /**
+     * Pool de mots BTP. Le mot de passe d'une agence est :
+     *   <Mot BTP><2 chiffres aléatoires>@
+     * Ex : Nacelle36@, Marteau12@, Echaff89@, etc.
+     */
+    private const BTP_WORDS = [
+        'Nacelle', 'Marteau', 'Echaff', 'Casque', 'Truelle', 'Niveau', 'Brique',
+        'Beton', 'Pelle', 'Foreuse', 'Visseuse', 'Madrier', 'Solive', 'Poutre',
+        'Plinthe', 'Toiture', 'Gravier', 'Sable', 'Ciment', 'Boulon', 'Ecrou',
+        'Tuyau', 'Rabot', 'Equerre', 'Burin', 'Massif', 'Tuile', 'Bardeau',
+        'Charpente', 'Vasis', 'Lattis', 'Garde', 'Volet', 'Marche', 'Rampe',
+        'Pioche', 'Truelle', 'Pince', 'Cle', 'Buse', 'Cable', 'Cavite',
+        'Etagere', 'Latte', 'Cheville', 'Tirefond', 'Vis', 'Longeron', 'Joint',
+        'Mastic', 'Lambris', 'Couverture',
+    ];
+
     public function run(): void
     {
-        $defaultPassword = Hash::make('changeme');
-
         // Format : [code, ville, email, adresse, telephone]
         $agencies = [
             ['AM', 'Amiens', 'amiens@salti.fr', "Allée Alain Ducamp, ZI Amiens Nord, 80000 Amiens", '03.22.50.25.25'],
@@ -78,20 +92,68 @@ class AgenciesSeeder extends Seeder
             ['VA', 'Valenciennes', 'valenciennes@salti.fr', "Rue Pablo Picasso, ZI Prouvy Rouvignies n°2, 59328 Valenciennes", '03.27.21.03.03'],
         ];
 
-        foreach ($agencies as [$code, $city, $email, $address, $phone]) {
-            User::updateOrCreate(
-                ['email' => $email],
-                [
+        // Génère un mot de passe BTP unique par agence
+        $words = self::BTP_WORDS;
+        shuffle($words);
+        $usedPasswords = [];
+        $createdCount = 0;
+        $updatedCount = 0;
+
+        $rows = []; // pour affichage récap final
+
+        foreach ($agencies as $i => [$code, $city, $email, $address, $phone]) {
+            // Choisit un mot dans la liste (cyclic) + 2 chiffres aléatoires + @
+            $word = $words[$i % count($words)];
+            $digits = sprintf('%02d', random_int(10, 99));
+            $plainPassword = "{$word}{$digits}@";
+            // Évite les collisions improbables sur les 2 chiffres
+            while (in_array($plainPassword, $usedPasswords, true)) {
+                $digits = sprintf('%02d', random_int(10, 99));
+                $plainPassword = "{$word}{$digits}@";
+            }
+            $usedPasswords[] = $plainPassword;
+
+            $existing = User::where('email', $email)->first();
+            if ($existing) {
+                // On ne réécrase PAS le mot de passe existant si l'agence est déjà créée
+                $existing->update([
                     'name' => "Agence {$city} ({$code})",
-                    'password' => $defaultPassword,
                     'role' => User::ROLE_AGENCY,
                     'city' => $city,
                     'address' => $address,
                     'phone' => $phone,
-                ]
-            );
+                ]);
+                $rows[] = "  · {$email}  →  (déjà créée, mdp inchangé)";
+                $updatedCount++;
+            } else {
+                User::create([
+                    'name' => "Agence {$city} ({$code})",
+                    'email' => $email,
+                    'password' => Hash::make($plainPassword),
+                    'role' => User::ROLE_AGENCY,
+                    'city' => $city,
+                    'address' => $address,
+                    'phone' => $phone,
+                ]);
+                $rows[] = sprintf("  · %-30s →  %s", $email, $plainPassword);
+                $createdCount++;
+            }
         }
 
-        $this->command->info(count($agencies).' agences SALTI seedées (mdp initial : changeme).');
+        $this->command->info('');
+        $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        $this->command->info(' Agences SALTI seedées');
+        $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        $this->command->info("  ✓ Créées : $createdCount");
+        $this->command->info("  · Mises à jour : $updatedCount");
+        $this->command->info('');
+        $this->command->info(' MOTS DE PASSE INITIAUX (à transmettre 1 fois à chaque agence) :');
+        foreach ($rows as $row) {
+            $this->command->info($row);
+        }
+        $this->command->info('');
+        $this->command->warn(' ⚠ NOTE BIEN ces mots de passe — ils ne seront plus affichés.');
+        $this->command->warn('   Pour reset un mot de passe : /admin/agencies → Reset MDP');
+        $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
 }

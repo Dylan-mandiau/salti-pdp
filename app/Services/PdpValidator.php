@@ -120,10 +120,12 @@ class PdpValidator
                 $this->error('operation.date_debut', 'Date de début invalide.', 1);
             }
         }
-        if (empty($op['duree'])) {
+        $hasDuree = ! empty($op['duree']) || (! empty($op['duree_value']) && ! empty($op['duree_unit']));
+        if (! $hasDuree) {
             $this->warning('operation.duree', 'Durée prévisible non renseignée.', 1);
         }
-        if (empty($op['plages_horaires'])) {
+        $hasHoraires = ! empty($op['plages_horaires']) || (! empty($op['plage_debut']) && ! empty($op['plage_fin']));
+        if (! $hasHoraires) {
             $this->warning('operation.plages_horaires', 'Plages horaires non précisées.', 1);
         }
         if (empty($op['nb_salaries']) || (int)$op['nb_salaries'] < 1) {
