@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'gmail' => [
+        // Chemin absolu vers le JSON du service account GCP.
+        // Voir doc/HOW_TO_SETUP_GMAIL.md pour la création.
+        'service_account_path' => env('GMAIL_SERVICE_ACCOUNT_PATH', storage_path('app/private/gmail-service-account.json')),
+    ],
+
 ];

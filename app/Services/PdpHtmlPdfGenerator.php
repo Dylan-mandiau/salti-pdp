@@ -23,8 +23,12 @@ use Mpdf\Mpdf;
  */
 class PdpHtmlPdfGenerator
 {
+    public function __construct(private PdfAnnexService $annexService) {}
+
     /**
      * Génère le PDF complet et retourne le chemin relatif (storage/app/...) du fichier.
+     * Append automatiquement les annexes à la fin (Plan d'accès, Permis feu,
+     * Convention, fichiers uploadés par le prestataire) si elles existent.
      */
     public function generate(Pdp $pdp): string
     {
@@ -59,6 +63,9 @@ class PdpHtmlPdfGenerator
             mkdir(dirname($absolutePath), 0775, true);
         }
         $mpdf->Output($absolutePath, \Mpdf\Output\Destination::FILE);
+
+        // Append les annexes (Plan d'accès, Permis feu, Convention, uploads presta)
+        $this->annexService->appendAnnexes($absolutePath, $pdp);
 
         return $relativePath;
     }

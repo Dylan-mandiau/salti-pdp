@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pdp;
 use App\Models\Prestataire;
 use App\Models\User;
+use App\Services\GmailService;
 use App\Services\PdpHtmlPdfGenerator;
 use App\Services\PdpPdfGenerator;
 use App\Services\PdpValidator;
@@ -21,9 +22,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class PdpController extends Controller
 {
     public function __construct(
-        private PdpHtmlPdfGenerator $generator,   // ← nouveau générateur HTML/CSS (rendu fidèle, zéro calibration)
-        private PdpPdfGenerator $legacyGenerator, // ← ancien (overlay sur PDF original) gardé pour /calibration.pdf
+        private PdpHtmlPdfGenerator $generator,
+        private PdpPdfGenerator $legacyGenerator,
         private PdpValidator $validator,
+        private GmailService $gmail,
     ) {}
 
     /**
@@ -210,11 +212,29 @@ class PdpController extends Controller
             'email' => $request->input('prestataire_email'),
         ]);
 
-        // TODO: envoi email réel via Mail::send
-        // Mail::to($request->prestataire_email)->send(new PrestataireInvitation($pdp));
+        // Envoi email via Gmail Workspace (Service Account) si configuré
+        $emailSent = false;
+        if ($this->gmail->isConfigured()) {
+            $agency = $pdp->agency;
+            $emailSent = $this->gmail->sendAs(
+                fromEmail: $agency->email,
+                fromName: $agency->name,
+                to: $request->input('prestataire_email'),
+                subject: 'Plan de Prévention SALTI à compléter — '.($pdp->data['operation']['designation'] ?? 'Intervention'),
+                htmlBody: view('emails.prestataire-invitation', [
+                    'pdp' => $pdp,
+                    'magicUrl' => $pdp->magicLinkUrl(),
+                    'agency' => $agency,
+                ])->render(),
+            );
+        }
 
-        return redirect()->route('pdp.edit', $pdp)
-            ->with('success', "Lien envoyé au prestataire (valable 7 jours).\n".$pdp->magicLinkUrl());
+        $msg = $emailSent
+            ? "✓ Lien envoyé par mail à {$request->input('prestataire_email')} (depuis {$pdp->agency->email}).\nValidité : 7 jours."
+            : "Lien magique généré (valable 7 jours) — copiez-le manuellement :\n".$pdp->magicLinkUrl()
+                ."\n\n⚠ L'envoi automatique par mail nécessite la configuration Gmail Workspace (voir doc).";
+
+        return redirect()->route('pdp.edit', $pdp)->with('success', $msg);
     }
 
     /**
