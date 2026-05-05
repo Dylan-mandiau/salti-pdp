@@ -51,27 +51,55 @@ class PdpController extends Controller
      */
     public function chooseMode(): View
     {
-        return view('pdp.choose-mode');
+        // Si QSE central : passer la liste des agences pour le dropdown.
+        $agencies = Auth::user()->isQseAdmin()
+            ? User::where('role', User::ROLE_AGENCY)->orderBy('city')->orderBy('name')->get(['id', 'name', 'city'])
+            : collect();
+
+        return view('pdp.choose-mode', compact('agencies'));
     }
 
     /**
      * Création d'un nouveau PDP avec le mode choisi.
+     * - Compte d'agence : le PDP est assigné à cette agence (sa propre id).
+     * - Compte QSE : le QSE doit choisir à quelle agence assigner le PDP.
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'mode' => 'required|in:presentiel,distance',
-            'donneur_ordre_nom' => 'required|string|max:255',
-        ]);
-
         $user = Auth::user();
 
+        $rules = [
+            'mode' => 'required|in:presentiel,distance',
+            'donneur_ordre_nom' => 'required|string|max:255',
+        ];
+
+        // Si QSE, l'agence cible est obligatoire
+        if ($user->isQseAdmin()) {
+            $rules['agency_id'] = 'required|integer|exists:users,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        // Détermine l'agence propriétaire du PDP
+        if ($user->isQseAdmin()) {
+            $agency = User::findOrFail($validated['agency_id']);
+            // Garde-fou : on ne peut pas assigner à un autre admin QSE par erreur
+            if ($agency->isQseAdmin()) {
+                return back()->with('error', 'Le PDP doit être assigné à une agence, pas au compte QSE central.');
+            }
+            $agencyId = $agency->id;
+            $defaultOtp = $agency->require_otp_by_default;
+        } else {
+            $agencyId = $user->id;
+            $defaultOtp = $user->require_otp_by_default;
+        }
+
         $pdp = Pdp::create([
-            'agency_id' => $user->id,
-            'mode' => $request->input('mode'),
+            'agency_id' => $agencyId,
+            'mode' => $validated['mode'],
             'status' => Pdp::STATUS_DRAFT,
-            'donneur_ordre_nom' => $request->input('donneur_ordre_nom'),
-            'require_otp' => $user->require_otp_by_default,
+            'donneur_ordre_nom' => $validated['donneur_ordre_nom'],
+            'require_otp' => $defaultOtp,
             'data' => Pdp::emptyData(),
         ]);
 

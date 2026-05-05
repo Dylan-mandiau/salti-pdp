@@ -6,7 +6,7 @@
         <p class="text-gray-500 mt-2">Comment souhaitez-vous remplir le PDP ?</p>
     </div>
 
-    <form method="POST" action="{{ route('pdp.store') }}" x-data="{ mode: null, donneur: '' }">
+    <form method="POST" action="{{ route('pdp.store') }}" x-data="{ mode: null, donneur: '', agencyId: '{{ auth()->user()->isQseAdmin() ? '' : auth()->id() }}' }">
         @csrf
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -45,11 +45,35 @@
 
         </div>
 
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Votre nom (apparaîtra comme donneur d'ordre)</label>
-            <input type="text" name="donneur_ordre_nom" x-model="donneur" required
-                   placeholder="Prénom NOM"
-                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-salti-yellow focus:ring-2 focus:ring-salti-yellow/30 outline-none">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 space-y-4">
+
+            @if(auth()->user()->isQseAdmin())
+                {{-- QSE central : doit choisir l'agence à laquelle assigner le PDP --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Agence <span class="text-red-600">*</span>
+                    </label>
+                    <select name="agency_id" x-model="agencyId" required
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-salti-yellow focus:ring-2 focus:ring-salti-yellow/30 outline-none">
+                        <option value="">— Sélectionner une agence —</option>
+                        @foreach($agencies as $a)
+                            <option value="{{ $a->id }}">{{ $a->city ?? $a->name }} ({{ $a->name }})</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Vous êtes connecté en tant que <strong>QSE central</strong> — le PDP sera créé pour le compte de cette agence.
+                    </p>
+                </div>
+            @endif
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Votre nom (apparaîtra comme donneur d'ordre) <span class="text-red-600">*</span>
+                </label>
+                <input type="text" name="donneur_ordre_nom" x-model="donneur" required
+                       placeholder="Prénom NOM"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-salti-yellow focus:ring-2 focus:ring-salti-yellow/30 outline-none">
+            </div>
         </div>
 
         <div class="flex justify-between">
@@ -57,8 +81,8 @@
                 ← Annuler
             </a>
             <button type="submit"
-                    :disabled="!mode || !donneur"
-                    :class="(!mode || !donneur) ? 'opacity-50 cursor-not-allowed' : ''"
+                    :disabled="!mode || !donneur || !agencyId"
+                    :class="(!mode || !donneur || !agencyId) ? 'opacity-50 cursor-not-allowed' : ''"
                     class="bg-black text-white font-semibold px-6 py-2.5 rounded shadow hover:bg-gray-800 transition">
                 Créer le PDP →
             </button>
