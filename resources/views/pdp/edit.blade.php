@@ -58,21 +58,36 @@
         </div>
     @endif
 
-    {{-- Stepper --}}
+    {{-- Stepper : mobile = numéros + titre court / desktop = tous les libellés --}}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-6">
-        <div class="flex overflow-x-auto">
-            @foreach([
-                1 => 'Infos générales',
-                2 => 'Documents & secours',
-                3 => 'EPI + Risques 1',
-                4 => 'Risques 2',
-                5 => 'Risques 3 + Habilitations',
-                6 => 'Signatures',
-            ] as $n => $label)
+        @php
+            $steps = [
+                1 => ['Infos générales', 'Infos'],
+                2 => ['Documents & secours', 'Docs'],
+                3 => ['EPI + Risques 1', 'EPI 1'],
+                4 => ['Risques 2', 'Risq 2'],
+                5 => ['Risques 3 + Habilitations', 'Hab.'],
+                6 => ['Signatures', 'Signer'],
+            ];
+        @endphp
+        {{-- Mobile : compact avec snap scroll --}}
+        <div class="flex md:hidden overflow-x-auto snap-x snap-mandatory gap-1 pb-1">
+            @foreach($steps as $n => [$long, $short])
+                <a href="?step={{ $n }}"
+                   class="snap-start shrink-0 flex flex-col items-center px-3 py-2 rounded min-w-[72px] text-center
+                          {{ $step === $n ? 'bg-salti-yellow text-black font-semibold' : 'text-gray-600 hover:bg-gray-50' }}">
+                    <span class="text-base font-bold">{{ $n }}</span>
+                    <span class="text-[11px] mt-0.5">{{ $short }}</span>
+                </a>
+            @endforeach
+        </div>
+        {{-- Desktop : libellé complet --}}
+        <div class="hidden md:flex overflow-x-auto">
+            @foreach($steps as $n => [$long, $short])
                 <a href="?step={{ $n }}"
                    class="flex-1 text-center px-3 py-2 text-sm rounded mx-1 whitespace-nowrap
                           {{ $step === $n ? 'bg-salti-yellow text-black font-semibold' : 'text-gray-600 hover:bg-gray-50' }}">
-                    {{ $n }}. {{ $label }}
+                    {{ $n }}. {{ $long }}
                 </a>
             @endforeach
         </div>
@@ -244,8 +259,8 @@
             <p class="text-sm text-gray-500 mb-6">Cochez les EPI obligatoires sur le site, puis indiquez les risques applicables.</p>
 
             <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">EPI obligatoires sur le site</h3>
-            <p class="text-xs text-gray-500 mb-3">Cliquez sur une carte pour cocher/décocher l'EPI.</p>
-            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 mb-4">
+            <p class="text-xs text-gray-500 mb-3">Touchez une carte pour cocher/décocher l'EPI.</p>
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-8 gap-2 sm:gap-3 mb-4">
                 @foreach([
                     'chaussures' => ['Chaussures', '/pdf-assets/epi-chaussures.png'],
                     'gants'      => ['Gants', '/pdf-assets/epi-gants.png'],
@@ -309,7 +324,25 @@
 
             <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">Autres risques non préalablement cités</h3>
             <p class="text-xs text-gray-500 mb-4">Ajoutez ici les risques spécifiques à cette opération s'ils ne sont pas dans la liste ci-dessus.</p>
-            <div class="overflow-x-auto">
+
+            {{-- Mobile : cards empilées --}}
+            <div class="md:hidden space-y-4">
+                @foreach($autresRisques as $i => $ar)
+                    <div class="border border-gray-200 rounded-lg p-3 space-y-2">
+                        <div class="text-xs font-semibold text-gray-500">Risque #{{ $i + 1 }}</div>
+                        <input type="text" name="autres_risques.{{ $i }}.situation" value="{{ $ar['situation'] ?? '' }}" placeholder="Situation" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                        <input type="text" name="autres_risques.{{ $i }}.risque" value="{{ $ar['risque'] ?? '' }}" placeholder="Risque" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                        <input type="text" name="autres_risques.{{ $i }}.mesure" value="{{ $ar['mesure'] ?? '' }}" placeholder="Mesure de prévention" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                        <div class="flex gap-4 text-sm">
+                            <label class="flex items-center gap-2"><input type="checkbox" name="autres_risques.{{ $i }}.eu" @change="save()" {{ ($ar['eu'] ?? false) ? 'checked' : '' }}> EU (SALTI)</label>
+                            <label class="flex items-center gap-2"><input type="checkbox" name="autres_risques.{{ $i }}.ee" @change="save()" {{ ($ar['ee'] ?? false) ? 'checked' : '' }}> EE (Presta)</label>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Desktop : tableau --}}
+            <div class="hidden md:block overflow-x-auto">
                 <table class="w-full border border-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
@@ -524,8 +557,10 @@
 
     </div>
 
-    {{-- Navigation --}}
-    <div class="flex justify-between items-center mt-6">
+    {{-- Navigation : 2 layouts (desktop full / mobile compact + menu actions) --}}
+
+    {{-- Desktop : tout sur une ligne --}}
+    <div class="hidden md:flex justify-between items-center mt-6">
         @if($step > 1)
             <a href="?step={{ $step - 1 }}" class="text-gray-600 hover:text-gray-900 px-4 py-2">← Étape précédente</a>
         @else
@@ -545,6 +580,51 @@
         @else
             <span></span>
         @endif
+    </div>
+
+    {{-- Mobile : barre sticky en bas avec ← / Actions / → + menu actions --}}
+    <div class="md:hidden h-20"></div> {{-- spacer pour la nav fixe --}}
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-2 py-2"
+         x-data="{ actionsOpen: false }">
+        <div class="flex items-center gap-2">
+            @if($step > 1)
+                <a href="?step={{ $step - 1 }}" class="flex-1 text-center py-2.5 border border-gray-300 rounded text-sm">← Préc.</a>
+            @else
+                <span class="flex-1"></span>
+            @endif
+
+            <button type="button" @click="actionsOpen = !actionsOpen"
+                    class="flex-1 py-2.5 border border-gray-300 rounded text-sm bg-gray-50 hover:bg-gray-100">
+                ⚙ Actions
+            </button>
+
+            @if($step < 6)
+                <a href="?step={{ $step + 1 }}" class="flex-1 text-center py-2.5 bg-salti-yellow text-black font-semibold rounded text-sm">Suivant →</a>
+            @else
+                <span class="flex-1"></span>
+            @endif
+        </div>
+
+        {{-- Sheet d'actions qui remonte du bas --}}
+        <div x-show="actionsOpen" x-cloak
+             @click.away="actionsOpen = false"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-4"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute bottom-full left-0 right-0 mb-2 mx-2 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+            <a href="{{ route('pdp.preview', $pdp) }}" target="_blank" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
+                👁 Aperçu PDF (nouvel onglet)
+            </a>
+            <a href="{{ route('pdp.download', $pdp) }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
+                📥 Télécharger le PDF
+            </a>
+            @if($pdp->mode === 'distance' && $pdp->status === 'draft')
+                <button type="button" @click="showSendModal = true; actionsOpen = false"
+                        class="block w-full text-left px-4 py-3 hover:bg-gray-50 text-purple-700 font-medium">
+                    ✉ Envoyer au prestataire
+                </button>
+            @endif
+        </div>
     </div>
 
     {{-- Modal "Envoyer au prestataire" --}}

@@ -46,22 +46,27 @@
 <body class="min-h-screen bg-white text-black">
 
     @auth
-    <nav class="bg-black text-white shadow">
+    <nav class="bg-black text-white shadow" x-data="{ menuOpen: false }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-14">
-                <div class="flex items-center space-x-6">
-                    <a href="{{ route('dashboard') }}" class="flex items-center">
-                        <span class="bg-salti-yellow text-black font-bold px-3 py-1 rounded">SALTI</span>
-                        <span class="ml-2 text-sm font-medium">Plan de Prévention</span>
-                    </a>
+            <div class="flex justify-between h-14 items-center">
+                {{-- Logo + brand (toujours visible) --}}
+                <a href="{{ route('dashboard') }}" class="flex items-center shrink-0">
+                    <span class="bg-salti-yellow text-black font-bold px-2.5 py-1 rounded text-sm">SALTI</span>
+                    <span class="ml-2 text-sm font-medium hidden sm:inline">Plan de Prévention</span>
+                </a>
+
+                {{-- Liens desktop (md+) --}}
+                <div class="hidden md:flex items-center space-x-5 flex-1 ml-8">
                     <a href="{{ route('dashboard') }}" class="text-sm hover:text-salti-yellow">Tableau de bord</a>
                     <a href="{{ route('pdp.choose-mode') }}" class="text-sm hover:text-salti-yellow">+ Nouveau PDP</a>
                     @if(auth()->user()->isQseAdmin())
                         <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Administration</a>
-                        <a href="{{ route('pdp.calibration') }}" target="_blank" class="text-sm hover:text-salti-yellow" title="PDF de calibration des coordonnées">📐 Calibration</a>
+                        <a href="{{ route('pdp.calibration') }}" target="_blank" class="text-sm hover:text-salti-yellow">📐 Calibration</a>
                     @endif
                 </div>
-                <div class="flex items-center space-x-4">
+
+                {{-- Bloc utilisateur desktop --}}
+                <div class="hidden md:flex items-center space-x-4">
                     <span class="text-sm text-gray-300">
                         {{ auth()->user()->name }}
                         @if(auth()->user()->isQseAdmin())
@@ -71,6 +76,34 @@
                     <form method="POST" action="{{ route('logout') }}" class="inline">
                         @csrf
                         <button type="submit" class="text-sm hover:text-salti-yellow">Déconnexion</button>
+                    </form>
+                </div>
+
+                {{-- Bouton burger mobile --}}
+                <button type="button" @click="menuOpen = !menuOpen" class="md:hidden p-2 -mr-2 rounded hover:bg-gray-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path x-show="!menuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        <path x-show="menuOpen" x-cloak stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Menu mobile déroulant --}}
+            <div x-show="menuOpen" x-cloak class="md:hidden pb-3 space-y-1 border-t border-gray-800 pt-2">
+                <a href="{{ route('dashboard') }}" class="block py-2 text-sm hover:text-salti-yellow">📋 Tableau de bord</a>
+                <a href="{{ route('pdp.choose-mode') }}" class="block py-2 text-sm hover:text-salti-yellow">➕ Nouveau PDP</a>
+                @if(auth()->user()->isQseAdmin())
+                    <a href="{{ route('admin.agencies.index') }}" class="block py-2 text-sm hover:text-salti-yellow">⚙ Administration</a>
+                    <a href="{{ route('pdp.calibration') }}" target="_blank" class="block py-2 text-sm hover:text-salti-yellow">📐 Calibration</a>
+                @endif
+                <div class="border-t border-gray-800 pt-2 mt-2">
+                    <div class="text-xs text-gray-400 py-1">
+                        {{ auth()->user()->name }}
+                        @if(auth()->user()->isQseAdmin())<span class="ml-1 px-1.5 py-0.5 bg-salti-yellow text-black text-xs rounded">QSE</span>@endif
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="block py-2 text-sm hover:text-salti-yellow text-left">🚪 Déconnexion</button>
                     </form>
                 </div>
             </div>

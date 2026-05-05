@@ -143,30 +143,26 @@
                     <br><span class="text-blue-700">SALTI a indiqué <strong>{{ $nbSalaries }} salarié{{ $nbSalaries > 1 ? 's' : '' }} affecté{{ $nbSalaries > 1 ? 's' : '' }}</strong> — vous trouverez {{ $nbSalaries }} ligne{{ $nbSalaries > 1 ? 's' : '' }} prête{{ $nbSalaries > 1 ? 's' : '' }} à remplir.</span>
                 @endif
             </p>
-            <div class="overflow-x-auto">
-                <table class="w-full border border-gray-200 text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Salarié (Nom Prénom)</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Habilitation / CACES</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date validité</th>
-                            <th class="px-3 py-2 w-10"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200" id="hab-table">
-                        @for($i = 0; $i < $habCount; $i++)
-                            @php $h = $habs->get($i); @endphp
-                            <tr data-hab-line>
-                                <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="nom_prenom" value="{{ $h->nom_prenom ?? '' }}" placeholder="Nom Prénom" class="w-full border-0 text-sm focus:ring-0"></td>
-                                <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="habilitation" value="{{ $h->habilitation ?? '' }}" placeholder="ex. CACES R489 cat 3" class="w-full border-0 text-sm focus:ring-0"></td>
-                                <td class="px-2 py-2"><input type="date" data-hab-row="{{ $i }}" data-hab-field="habilitation_validity" value="{{ $h?->habilitation_validity?->format('Y-m-d') ?? '' }}" class="w-full border-0 text-sm focus:ring-0"></td>
-                                <td class="px-2 py-2 text-center">
-                                    <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-lg" title="Supprimer cette ligne">×</button>
-                                </td>
-                            </tr>
-                        @endfor
-                    </tbody>
-                </table>
+            {{-- Cards : affichage uniforme (1 col mobile, lignes horizontales desktop) --}}
+            <div class="space-y-3" id="hab-table">
+                @for($i = 0; $i < $habCount; $i++)
+                    @php $h = $habs->get($i); @endphp
+                    <div data-hab-line class="border border-gray-200 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2 md:mb-0 md:hidden">
+                            <div class="text-xs font-semibold text-gray-500">Salarié #{{ $i + 1 }}</div>
+                            <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-2xl leading-none" title="Supprimer">×</button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_40px] gap-2 md:items-center">
+                            <input type="text" data-hab-row="{{ $i }}" data-hab-field="nom_prenom" value="{{ $h->nom_prenom ?? '' }}" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="text" data-hab-row="{{ $i }}" data-hab-field="habilitation" value="{{ $h->habilitation ?? '' }}" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <div>
+                                <label class="text-xs text-gray-500 md:hidden">Date de validité</label>
+                                <input type="date" data-hab-row="{{ $i }}" data-hab-field="habilitation_validity" value="{{ $h?->habilitation_validity?->format('Y-m-d') ?? '' }}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            </div>
+                            <button type="button" onclick="removeHabLine(this)" class="hidden md:block text-red-500 hover:text-red-700 text-lg justify-self-center" title="Supprimer">×</button>
+                        </div>
+                    </div>
+                @endfor
             </div>
             <button type="button" onclick="addHabLine()"
                     class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
@@ -307,36 +303,49 @@
     }
     document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-hab-row], [data-ar-row]').forEach(attachAutoSave);
 
-    // Ajout / suppression de lignes Habilitations dynamiquement
-    window.addHabLine = function() {
-        const tbody = document.getElementById('hab-table');
-        const idx = tbody.querySelectorAll('[data-hab-line]').length;
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-hab-line', '');
-        tr.innerHTML = `
-            <td class="px-2 py-2"><input type="text" data-hab-row="${idx}" data-hab-field="nom_prenom" placeholder="Nom Prénom" class="w-full border-0 text-sm focus:ring-0"></td>
-            <td class="px-2 py-2"><input type="text" data-hab-row="${idx}" data-hab-field="habilitation" placeholder="ex. CACES R489 cat 3" class="w-full border-0 text-sm focus:ring-0"></td>
-            <td class="px-2 py-2"><input type="date" data-hab-row="${idx}" data-hab-field="habilitation_validity" class="w-full border-0 text-sm focus:ring-0"></td>
-            <td class="px-2 py-2 text-center">
-                <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-lg" title="Supprimer cette ligne">×</button>
-            </td>
+    // Ajout / suppression de lignes Habilitations dynamiquement (format cards responsive)
+    function buildHabCardHtml(idx) {
+        return `
+            <div class="flex items-center justify-between mb-2 md:mb-0 md:hidden">
+                <div class="text-xs font-semibold text-gray-500">Salarié #${idx + 1}</div>
+                <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-2xl leading-none">×</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_40px] gap-2 md:items-center">
+                <input type="text" data-hab-row="${idx}" data-hab-field="nom_prenom" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                <input type="text" data-hab-row="${idx}" data-hab-field="habilitation" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                <div>
+                    <label class="text-xs text-gray-500 md:hidden">Date de validité</label>
+                    <input type="date" data-hab-row="${idx}" data-hab-field="habilitation_validity" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                </div>
+                <button type="button" onclick="removeHabLine(this)" class="hidden md:block text-red-500 hover:text-red-700 text-lg justify-self-center">×</button>
+            </div>
         `;
-        tbody.appendChild(tr);
-        tr.querySelectorAll('input').forEach(attachAutoSave);
-        tr.querySelector('input').focus();
+    }
+
+    window.addHabLine = function() {
+        const container = document.getElementById('hab-table');
+        const idx = container.querySelectorAll('[data-hab-line]').length;
+        const card = document.createElement('div');
+        card.setAttribute('data-hab-line', '');
+        card.className = 'border border-gray-200 rounded-lg p-3';
+        card.innerHTML = buildHabCardHtml(idx);
+        container.appendChild(card);
+        card.querySelectorAll('input').forEach(attachAutoSave);
+        card.querySelector('input').focus();
     };
 
     window.removeHabLine = function(btn) {
-        const tbody = document.getElementById('hab-table');
-        if (tbody.querySelectorAll('[data-hab-line]').length <= 1) {
-            // Garde au moins une ligne — vide les champs au lieu de supprimer
-            btn.closest('tr').querySelectorAll('input').forEach(i => i.value = '');
+        const container = document.getElementById('hab-table');
+        const card = btn.closest('[data-hab-line]');
+        if (container.querySelectorAll('[data-hab-line]').length <= 1) {
+            // Garde au moins une ligne — vide les champs
+            card.querySelectorAll('input').forEach(i => i.value = '');
         } else {
-            btn.closest('tr').remove();
+            card.remove();
         }
         // Re-numérote les data-hab-row pour rester cohérent
-        tbody.querySelectorAll('[data-hab-line]').forEach((tr, i) => {
-            tr.querySelectorAll('[data-hab-row]').forEach(el => el.setAttribute('data-hab-row', i));
+        container.querySelectorAll('[data-hab-line]').forEach((el, i) => {
+            el.querySelectorAll('[data-hab-row]').forEach(input => input.setAttribute('data-hab-row', i));
         });
         clearTimeout(saveTimer);
         saveTimer = setTimeout(autoSave, 200);
