@@ -47,43 +47,47 @@ return [
     // ===========================================================================
     // PAGE 1 — Informations générales
     // ===========================================================================
+    // ⚠ Coordonnées initiales en cours de calibration. Utiliser :
+    //    php artisan pdp:calibrate
+    //    OU le bouton "📐 Calibration" dans la nav (compte QSE)
+    // pour générer un PDF avec croix rouges et ajuster.
     'page_1' => [
-        // Bloc Entreprise Utilisatrice (SALTI)
-        'eu_agence' => ['x' => 38, 'y' => 78, 'w' => 50],
-        'eu_donneur_ordre' => ['x' => 65, 'y' => 84, 'w' => 60],
-        'eu_address' => ['x' => 27, 'y' => 96, 'w' => 60],
-        'eu_phone' => ['x' => 27, 'y' => 102, 'w' => 60],
+        // Bloc Entreprise Utilisatrice (SALTI) - colonne gauche
+        'eu_agence' => ['x' => 65, 'y' => 95, 'w' => 50],          // après "Agence de ............"
+        'eu_donneur_ordre' => ['x' => 80, 'y' => 102, 'w' => 50],  // après "Nom / Prénom donneur d'ordre :"
+        'eu_address' => ['x' => 38, 'y' => 115, 'w' => 60],         // après "Adresse :"
+        'eu_phone' => ['x' => 40, 'y' => 122, 'w' => 60],           // après "Téléphone :"
 
-        // Bloc Entreprise Extérieure
-        'ee_raison_sociale' => ['x' => 130, 'y' => 78, 'w' => 70],
-        'ee_responsable' => ['x' => 130, 'y' => 90, 'w' => 70],
-        'ee_address' => ['x' => 130, 'y' => 96, 'w' => 70],
-        'ee_phone' => ['x' => 130, 'y' => 102, 'w' => 70],
-        'ee_sous_traitance_oui' => ['x' => 158, 'y' => 110, 'type' => 'checkbox'],
-        'ee_sous_traitance_non' => ['x' => 175, 'y' => 110, 'type' => 'checkbox'],
+        // Bloc Entreprise Extérieure - colonne droite
+        'ee_raison_sociale' => ['x' => 145, 'y' => 95, 'w' => 60],
+        'ee_responsable' => ['x' => 145, 'y' => 108, 'w' => 60],
+        'ee_address' => ['x' => 145, 'y' => 115, 'w' => 60],
+        'ee_phone' => ['x' => 145, 'y' => 122, 'w' => 60],
+        'ee_sous_traitance_oui' => ['x' => 162, 'y' => 130, 'type' => 'checkbox'],
+        'ee_sous_traitance_non' => ['x' => 180, 'y' => 130, 'type' => 'checkbox'],
 
         // Nature de l'opération
-        'op_ponctuelle' => ['x' => 70, 'y' => 175, 'type' => 'checkbox'],
-        'op_annuelle' => ['x' => 70, 'y' => 181, 'type' => 'checkbox'],
-        'op_moins_400h' => ['x' => 130, 'y' => 175, 'type' => 'checkbox'],
-        'op_plus_400h' => ['x' => 130, 'y' => 181, 'type' => 'checkbox'],
-        'op_travaux_dangereux' => ['x' => 70, 'y' => 187, 'type' => 'checkbox'],
-        'op_designation' => ['x' => 70, 'y' => 195, 'w' => 130],
-        'op_lieu' => ['x' => 60, 'y' => 201, 'w' => 140],
-        'op_date_debut' => ['x' => 60, 'y' => 209, 'w' => 50],
-        'op_duree' => ['x' => 145, 'y' => 209, 'w' => 50],
-        'op_plages_horaires' => ['x' => 35, 'y' => 215, 'w' => 60],
-        'op_nb_salaries' => ['x' => 145, 'y' => 215, 'w' => 30],
+        'op_ponctuelle' => ['x' => 70, 'y' => 192, 'type' => 'checkbox'],
+        'op_annuelle' => ['x' => 70, 'y' => 198, 'type' => 'checkbox'],
+        'op_moins_400h' => ['x' => 130, 'y' => 192, 'type' => 'checkbox'],
+        'op_plus_400h' => ['x' => 130, 'y' => 198, 'type' => 'checkbox'],
+        'op_travaux_dangereux' => ['x' => 70, 'y' => 204, 'type' => 'checkbox'],
+        'op_designation' => ['x' => 70, 'y' => 210, 'w' => 130],
+        'op_lieu' => ['x' => 60, 'y' => 218, 'w' => 140],
+        'op_date_debut' => ['x' => 60, 'y' => 226, 'w' => 50],
+        'op_duree' => ['x' => 145, 'y' => 226, 'w' => 50],
+        'op_plages_horaires' => ['x' => 35, 'y' => 233, 'w' => 60],
+        'op_nb_salaries' => ['x' => 145, 'y' => 233, 'w' => 30],
 
         // Inspection commune
-        'insp_date' => ['x' => 50, 'y' => 232, 'w' => 100],
-        'insp_participants' => ['x' => 60, 'y' => 238, 'w' => 140],
-        'insp_informations' => ['x' => 95, 'y' => 244, 'w' => 105],
-        'insp_zones' => ['x' => 38, 'y' => 250, 'w' => 162],
-        'insp_observations' => ['x' => 65, 'y' => 256, 'w' => 135],
-        'insp_vestiaires' => ['x' => 75, 'y' => 268, 'type' => 'checkbox'],
-        'insp_sanitaires' => ['x' => 110, 'y' => 268, 'type' => 'checkbox'],
-        'insp_refectoire' => ['x' => 145, 'y' => 268, 'type' => 'checkbox'],
+        'insp_date' => ['x' => 50, 'y' => 250, 'w' => 100],
+        'insp_participants' => ['x' => 60, 'y' => 256, 'w' => 140],
+        'insp_informations' => ['x' => 95, 'y' => 262, 'w' => 105],
+        'insp_zones' => ['x' => 38, 'y' => 268, 'w' => 162],
+        'insp_observations' => ['x' => 65, 'y' => 274, 'w' => 135],
+        'insp_vestiaires' => ['x' => 75, 'y' => 286, 'type' => 'checkbox'],
+        'insp_sanitaires' => ['x' => 110, 'y' => 286, 'type' => 'checkbox'],
+        'insp_refectoire' => ['x' => 145, 'y' => 286, 'type' => 'checkbox'],
     ],
 
     // ===========================================================================
@@ -181,28 +185,30 @@ return [
     // ===========================================================================
     'page_6' => [
         // Attestation de prise de connaissance (4 lignes)
-        'intervenant_1_nom' => ['x' => 15, 'y' => 73, 'w' => 90],
-        'intervenant_1_date' => ['x' => 110, 'y' => 73, 'w' => 30],
-        'intervenant_1_signature' => ['x' => 145, 'y' => 70, 'w' => 50, 'h' => 12, 'type' => 'image'],
-        'intervenant_2_nom' => ['x' => 15, 'y' => 88, 'w' => 90],
-        'intervenant_2_date' => ['x' => 110, 'y' => 88, 'w' => 30],
-        'intervenant_2_signature' => ['x' => 145, 'y' => 85, 'w' => 50, 'h' => 12, 'type' => 'image'],
-        'intervenant_3_nom' => ['x' => 15, 'y' => 103, 'w' => 90],
-        'intervenant_3_date' => ['x' => 110, 'y' => 103, 'w' => 30],
-        'intervenant_3_signature' => ['x' => 145, 'y' => 100, 'w' => 50, 'h' => 12, 'type' => 'image'],
-        'intervenant_4_nom' => ['x' => 15, 'y' => 118, 'w' => 90],
-        'intervenant_4_date' => ['x' => 110, 'y' => 118, 'w' => 30],
-        'intervenant_4_signature' => ['x' => 145, 'y' => 115, 'w' => 50, 'h' => 12, 'type' => 'image'],
+        'intervenant_1_nom' => ['x' => 15, 'y' => 80, 'w' => 90],
+        'intervenant_1_date' => ['x' => 110, 'y' => 80, 'w' => 30],
+        'intervenant_1_signature' => ['x' => 145, 'y' => 75, 'w' => 50, 'h' => 13, 'type' => 'image'],
+        'intervenant_2_nom' => ['x' => 15, 'y' => 95, 'w' => 90],
+        'intervenant_2_date' => ['x' => 110, 'y' => 95, 'w' => 30],
+        'intervenant_2_signature' => ['x' => 145, 'y' => 90, 'w' => 50, 'h' => 13, 'type' => 'image'],
+        'intervenant_3_nom' => ['x' => 15, 'y' => 110, 'w' => 90],
+        'intervenant_3_date' => ['x' => 110, 'y' => 110, 'w' => 30],
+        'intervenant_3_signature' => ['x' => 145, 'y' => 105, 'w' => 50, 'h' => 13, 'type' => 'image'],
+        'intervenant_4_nom' => ['x' => 15, 'y' => 125, 'w' => 90],
+        'intervenant_4_date' => ['x' => 110, 'y' => 125, 'w' => 30],
+        'intervenant_4_signature' => ['x' => 145, 'y' => 120, 'w' => 50, 'h' => 13, 'type' => 'image'],
 
-        // Signatures finales des représentants
-        'sign_salti_nom' => ['x' => 35, 'y' => 218, 'w' => 70],
-        'sign_salti_fonction' => ['x' => 30, 'y' => 224, 'w' => 70],
-        'sign_salti_date' => ['x' => 50, 'y' => 230, 'w' => 50],
-        'sign_salti_image' => ['x' => 25, 'y' => 235, 'w' => 75, 'h' => 22, 'type' => 'image'],
+        // Signatures finales des représentants — boîtes ENTREPRISE UTILISATRICE / EXTERIEURE
+        // Boîtes en bas de page : approximativement y=215 (titre) à y=275 (bas)
+        // Texte saisi va dans la moitié haute, signature image dans la moitié basse
+        'sign_salti_nom' => ['x' => 30, 'y' => 222, 'w' => 70],         // après "Prénom NOM :"
+        'sign_salti_fonction' => ['x' => 25, 'y' => 232, 'w' => 70],    // après "Fonction :"
+        'sign_salti_date' => ['x' => 50, 'y' => 242, 'w' => 50],        // après "Date de signature :"
+        'sign_salti_image' => ['x' => 25, 'y' => 248, 'w' => 70, 'h' => 22, 'type' => 'image'],
 
-        'sign_ee_nom' => ['x' => 130, 'y' => 218, 'w' => 70],
-        'sign_ee_fonction' => ['x' => 125, 'y' => 224, 'w' => 70],
-        'sign_ee_date' => ['x' => 145, 'y' => 230, 'w' => 50],
-        'sign_ee_image' => ['x' => 120, 'y' => 235, 'w' => 75, 'h' => 22, 'type' => 'image'],
+        'sign_ee_nom' => ['x' => 130, 'y' => 222, 'w' => 70],
+        'sign_ee_fonction' => ['x' => 125, 'y' => 232, 'w' => 70],
+        'sign_ee_date' => ['x' => 150, 'y' => 242, 'w' => 50],
+        'sign_ee_image' => ['x' => 125, 'y' => 248, 'w' => 70, 'h' => 22, 'type' => 'image'],
     ],
 ];

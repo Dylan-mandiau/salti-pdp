@@ -34,6 +34,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/pdp/{pdp}/reopen', [PdpController::class, 'reopen'])->name('pdp.reopen');
     Route::delete('/pdp/{pdp}', [PdpController::class, 'destroy'])->name('pdp.destroy');
 
+    // Calibration des coordonnées PDF (QSE uniquement)
+    Route::get('/calibration.pdf', [PdpController::class, 'calibrationPdf'])->name('pdp.calibration');
+
     // Aperçu et téléchargement PDF
     Route::get('/pdp/{pdp}/preview', [PdpController::class, 'preview'])->name('pdp.preview');
     Route::get('/pdp/{pdp}/download', [PdpController::class, 'download'])->name('pdp.download');

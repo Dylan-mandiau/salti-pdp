@@ -28,6 +28,60 @@ class PdpPdfGenerator
     }
 
     /**
+     * Génère un PDF de calibration : à la place des valeurs réelles,
+     * dessine un point rouge + le nom du champ à chaque coordonnée du mapping.
+     * Permet d'ajuster visuellement les x/y dans config/pdp_pdf_mapping.php.
+     */
+    public function generateCalibrationPdf(): string
+    {
+        $this->pdf = new Fpdi('P', 'mm', 'A4');
+        $this->pdf->SetMargins(0, 0, 0);
+        $this->pdf->SetAutoPageBreak(false);
+        $this->pdf->setPrintHeader(false);
+        $this->pdf->setPrintFooter(false);
+
+        $templatePath = $this->mapping['template_path'];
+        $pageCount = $this->pdf->setSourceFile($templatePath);
+
+        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+            $tplIdx = $this->pdf->importPage($pageNumber);
+            $size = $this->pdf->getTemplateSize($tplIdx);
+            $this->pdf->AddPage('P', [$size['width'], $size['height']]);
+            $this->pdf->useTemplate($tplIdx);
+
+            $pageMapping = $this->mapping["page_$pageNumber"] ?? [];
+            foreach ($pageMapping as $fieldKey => $coord) {
+                if (! is_array($coord) || ! isset($coord['x'], $coord['y'])) {
+                    continue;
+                }
+                // Croix rouge au point exact
+                $this->pdf->SetDrawColor(255, 0, 0);
+                $this->pdf->SetLineWidth(0.3);
+                $this->pdf->Line($coord['x'] - 1, $coord['y'], $coord['x'] + 1, $coord['y']);
+                $this->pdf->Line($coord['x'], $coord['y'] - 1, $coord['x'], $coord['y'] + 1);
+
+                // Label en petit, à droite de la croix
+                $this->pdf->SetFont('helvetica', '', 5);
+                $this->pdf->SetTextColor(220, 0, 0);
+                $this->pdf->SetXY($coord['x'] + 1.5, $coord['y'] - 1);
+                $type = $coord['type'] ?? 'text';
+                $marker = $type === 'checkbox' ? '☐ ' : ($type === 'image' ? '🖼 ' : '');
+                $this->pdf->Cell(60, 2, $marker.$fieldKey.' ('.$coord['x'].','.$coord['y'].')', 0, 0, 'L');
+            }
+        }
+
+        $relativePath = "calibration/calibration-".time().".pdf";
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        if (! is_dir(dirname($absolutePath))) {
+            mkdir(dirname($absolutePath), 0775, true);
+        }
+
+        $this->pdf->Output($absolutePath, 'F');
+        return $relativePath;
+    }
+
+    /**
      * Génère le PDF complet et retourne le chemin du fichier généré sur le disque storage.
      */
     public function generate(Pdp $pdp): string

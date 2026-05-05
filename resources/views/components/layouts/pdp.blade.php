@@ -58,6 +58,7 @@
                     <a href="{{ route('pdp.choose-mode') }}" class="text-sm hover:text-salti-yellow">+ Nouveau PDP</a>
                     @if(auth()->user()->isQseAdmin())
                         <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Administration</a>
+                        <a href="{{ route('pdp.calibration') }}" target="_blank" class="text-sm hover:text-salti-yellow" title="PDF de calibration des coordonnées">📐 Calibration</a>
                     @endif
                 </div>
                 <div class="flex items-center space-x-4">

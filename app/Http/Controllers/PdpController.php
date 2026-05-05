@@ -369,6 +369,25 @@ class PdpController extends Controller
     }
 
     /**
+     * Télécharge le PDF de calibration (croix rouges aux coordonnées du mapping).
+     * Réservé au QSE central.
+     */
+    public function calibrationPdf(): BinaryFileResponse
+    {
+        if (! Auth::user()->isQseAdmin()) {
+            abort(403, 'Réservé au compte QSE central.');
+        }
+
+        $relativePath = $this->generator->generateCalibrationPdf();
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        return response()->file($absolutePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="calibration-mapping.pdf"',
+        ]);
+    }
+
+    /**
      * Annulation d'un PDP (soft : status passe à "cancelled" mais on garde la trace).
      */
     public function cancel(Pdp $pdp, Request $request): RedirectResponse
