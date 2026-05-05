@@ -76,17 +76,29 @@
         color: #000;
     }
 
-    /* EPI table */
+    /* EPI table — unités mm pour rendu mPDF stable */
     .epi-table td {
         text-align: center;
         border: 1px solid #000;
-        padding: 4px;
+        padding: 2mm 1mm;
         vertical-align: middle;
     }
-    .epi-table img { max-height: 35px; }
-    .epi-table .obligatoire-label {
+    .epi-table .icon-row td { height: 18mm; }
+    .epi-table .icon-row img {
+        height: 16mm;
+        width: auto;
+    }
+    .epi-table .obligatoire-row td {
+        height: 8mm;
+        padding: 2mm;
+        font-size: 11pt;
         font-weight: bold;
+    }
+    .epi-table .obligatoire-label {
         background: #fafafa;
+        text-align: left;
+        padding-left: 4mm;
+        font-size: 10pt;
     }
 
     /* Tableau des risques */
@@ -314,20 +326,27 @@
     </p>
 
     {{-- Bandeau EPI --}}
-    <table class="bordered epi-table" style="margin-top:8px">
-        <tr>
-            <td><img src="{{ $assets }}arrow-obligatoire.png"></td>
-            <td><img src="{{ $assets }}epi-ouvrier.png"></td>
-            <td><img src="{{ $assets }}epi-chaussures.png"></td>
-            <td><img src="{{ $assets }}epi-gants.png"></td>
-            <td><img src="{{ $assets }}epi-casque.png"></td>
-            <td><img src="{{ $assets }}epi-lunettes.png"></td>
-            <td><img src="{{ $assets }}epi-masque.png"></td>
-            <td><img src="{{ $assets }}epi-auditives.png"></td>
-            <td><img src="{{ $assets }}epi-gilet-hv.png"></td>
-            <td><img src="{{ $assets }}epi-harnais.jpg"></td>
+    @php $iconH = 60; /* hauteur des pictos EPI en px (rendu mPDF) */ @endphp
+    <table class="bordered epi-table" style="margin-top:8px; table-layout:fixed">
+        <colgroup>
+            <col style="width:14%"> {{-- Flèche + label Obligatoire --}}
+            <col style="width:9.5%"><col style="width:9.5%"><col style="width:9.5%">
+            <col style="width:9.5%"><col style="width:9.5%"><col style="width:9.5%">
+            <col style="width:9.5%"><col style="width:9.5%"><col style="width:9.5%">
+        </colgroup>
+        <tr class="icon-row">
+            <td><img src="{{ $assets }}arrow-obligatoire.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-ouvrier.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-chaussures.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-gants.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-casque.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-lunettes.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-masque.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-auditives.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-gilet-hv.png" height="{{ $iconH }}"></td>
+            <td><img src="{{ $assets }}epi-harnais.jpg" height="{{ $iconH }}"></td>
         </tr>
-        <tr>
+        <tr class="obligatoire-row">
             <td class="obligatoire-label">Obligatoire</td>
             <td></td>
             <td>{!! ($epi['chaussures'] ?? false) ? '<strong>X</strong>' : '' !!}</td>
