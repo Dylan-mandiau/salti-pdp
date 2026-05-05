@@ -55,6 +55,41 @@
         </div>
     </form>
 
+    {{-- Bloc Plan d'accès --}}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+        <h3 class="font-semibold text-blue-900 mb-2">📍 Plan d'accès / circulation / zone d'attente</h3>
+        <p class="text-sm text-blue-800 mb-3">
+            Spécifique à <strong>{{ $agency->name }}</strong>. Ce fichier sera transmis automatiquement
+            au prestataire à chaque PDP de cette agence quand la case "Plan (accès, circulation...)" est cochée.
+        </p>
+
+        @if($agency->access_plan_path)
+            <div class="bg-white border border-blue-200 rounded p-3 mb-3 flex items-center justify-between">
+                <div class="text-sm">
+                    <div class="font-medium text-blue-900">📎 {{ $agency->access_plan_filename }}</div>
+                    <div class="text-xs text-blue-700">Fichier actuel</div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="{{ route('admin.agencies.download-plan', $agency) }}" class="text-sm text-blue-800 hover:underline">Télécharger</a>
+                    <form method="POST" action="{{ route('admin.agencies.delete-plan', $agency) }}" onsubmit="return confirm('Supprimer le plan d\'accès ?');">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-sm text-red-600 hover:underline">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        @endif
+
+        <form method="POST" action="{{ route('admin.agencies.upload-plan', $agency) }}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            @csrf
+            <input type="file" name="access_plan" required accept=".pdf,.jpg,.jpeg,.png"
+                   class="flex-1 border border-blue-300 rounded px-3 py-2 text-sm bg-white">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded whitespace-nowrap">
+                {{ $agency->access_plan_path ? 'Remplacer' : 'Uploader' }}
+            </button>
+        </form>
+        <p class="text-xs text-blue-700 mt-2">PDF, JPG, PNG — max 10 Mo.</p>
+    </div>
+
     {{-- Bloc reset MDP --}}
     <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 mt-6">
         <h3 class="font-semibold text-orange-900 mb-2">Réinitialiser le mot de passe</h3>

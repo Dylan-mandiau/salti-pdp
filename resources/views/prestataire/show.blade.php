@@ -111,8 +111,9 @@
         {{-- Documents que vous remettez à SALTI --}}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 class="font-semibold mb-4">Documents que vous remettez à SALTI</h2>
-            <p class="text-sm text-gray-600 mb-3">Cochez les documents fournis pour cette intervention.</p>
-            <div class="space-y-2">
+
+            <p class="text-sm text-gray-600 mb-3">1️⃣ Cochez les types de documents fournis :</p>
+            <div class="space-y-2 mb-5">
                 <label class="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" data-cb-path="documents_remis_salti.autorisation_conduite" {{ ($data['documents_remis_salti']['autorisation_conduite'] ?? false) ? 'checked' : '' }} class="mt-0.5">
                     <span class="text-sm">Autorisation de conduite</span>
@@ -125,6 +126,39 @@
                     <input type="checkbox" data-cb-path="documents_remis_salti.habilitations" {{ ($data['documents_remis_salti']['habilitations'] ?? false) ? 'checked' : '' }} class="mt-0.5">
                     <span class="text-sm">Habilitations</span>
                 </label>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-3">2️⃣ Joignez vos fichiers (glisser-déposer ou cliquer) :</p>
+            {{-- Zone drag & drop --}}
+            <div id="dropzone"
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-salti-yellow hover:bg-salti-yellow/5 transition">
+                <div class="text-4xl mb-2">📂</div>
+                <div class="text-sm font-medium text-gray-700 mb-1">
+                    <span class="text-salti-yellow-dark underline">Cliquer pour choisir</span>
+                    ou glissez vos fichiers ici
+                </div>
+                <div class="text-xs text-gray-500">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</div>
+                <input type="file" id="dropzone-input" multiple class="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+            </div>
+
+            {{-- Liste des fichiers déjà uploadés --}}
+            @php $existingDocs = $pdp->documents()->where('uploaded_by', 'prestataire')->get(); @endphp
+            <div id="files-list" class="mt-4 space-y-2">
+                @foreach($existingDocs as $doc)
+                    <div data-doc-id="{{ $doc->id }}" class="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <span class="text-xl shrink-0">📄</span>
+                            <div class="min-w-0">
+                                <div class="text-sm font-medium truncate">{{ $doc->original_filename }}</div>
+                                <div class="text-xs text-gray-500">{{ number_format($doc->size / 1024, 0) }} Ko · {{ $doc->type }}</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-sm text-blue-600 hover:underline">Voir</a>
+                            <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-sm text-red-600 hover:underline">Supprimer</button>
+                        </div>
+                    </div>
+                @endforeach
             </div>
         </div>
 
@@ -432,6 +466,92 @@
         }
         document.getElementById('sig-ee-data').value = sigEE.toDataURL('image/png');
         return true;
+    }
+
+    // Drag & drop upload
+    const dropzone = document.getElementById('dropzone');
+    const dropzoneInput = document.getElementById('dropzone-input');
+    const filesList = document.getElementById('files-list');
+
+    if (dropzone) {
+        dropzone.addEventListener('click', () => dropzoneInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-salti-yellow', 'bg-salti-yellow/10'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-salti-yellow', 'bg-salti-yellow/10'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-salti-yellow', 'bg-salti-yellow/10');
+            for (const file of e.dataTransfer.files) {
+                uploadFile(file);
+            }
+        });
+        dropzoneInput.addEventListener('change', () => {
+            for (const file of dropzoneInput.files) uploadFile(file);
+            dropzoneInput.value = '';
+        });
+    }
+
+    async function uploadFile(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            alert(`Le fichier "${file.name}" dépasse 10 Mo`);
+            return;
+        }
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'autre');
+        fd.append('label', file.name);
+
+        // Petit indicateur visuel pendant l'upload
+        const tempLine = document.createElement('div');
+        tempLine.className = 'flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm';
+        tempLine.innerHTML = `<span>⏳</span><span>Upload en cours : ${file.name}</span>`;
+        filesList.appendChild(tempLine);
+
+        try {
+            const r = await fetch(`/p/${TOKEN}/upload`, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                body: fd,
+            });
+            const d = await r.json();
+            tempLine.remove();
+            if (d.error) { alert(d.error); return; }
+
+            // Affiche la nouvelle ligne
+            const line = document.createElement('div');
+            line.setAttribute('data-doc-id', d.id);
+            line.className = 'flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded';
+            const safeName = document.createElement('span');
+            safeName.textContent = d.filename;
+            line.innerHTML = `
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="text-xl shrink-0">📄</span>
+                    <div class="min-w-0">
+                        <div class="text-sm font-medium truncate" data-name></div>
+                        <div class="text-xs text-gray-500">${(d.size / 1024).toFixed(0)} Ko · ${d.type}</div>
+                    </div>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <a href="${d.download_url}" class="text-sm text-blue-600 hover:underline">Voir</a>
+                    <button type="button" data-delete-btn class="text-sm text-red-600 hover:underline">Supprimer</button>
+                </div>`;
+            line.querySelector('[data-name]').textContent = d.filename;
+            line.querySelector('[data-delete-btn]').addEventListener('click', () => deleteDoc(d.id));
+            filesList.appendChild(line);
+        } catch (err) {
+            tempLine.remove();
+            alert('Erreur lors de l\'upload : '+err.message);
+        }
+    }
+
+    window.deleteDoc = async function(docId) {
+        if (! confirm('Supprimer ce fichier ?')) return;
+        const r = await fetch(`/p/${TOKEN}/upload/${docId}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        });
+        if (r.ok) {
+            document.querySelector(`[data-doc-id="${docId}"]`)?.remove();
+        }
     }
 </script>
 </x-layouts.pdp>

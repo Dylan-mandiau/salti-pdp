@@ -77,6 +77,82 @@ class PrestataireAccessController extends Controller
     }
 
     /**
+     * Upload d'un fichier par le prestataire (CACES, habilitations, photos, etc.)
+     */
+    public function uploadDocument(string $token, Request $request)
+    {
+        $pdp = $this->resolveToken($token);
+
+        if (! in_array($pdp->status, [\App\Models\Pdp::STATUS_AWAITING_PRESTATAIRE, \App\Models\Pdp::STATUS_CORRECTIONS_REQUESTED])) {
+            return response()->json(['error' => 'PDP non éditable dans cet état'], 423);
+        }
+
+        $request->validate([
+            'file' => 'required|file|max:10240', // 10 MB
+            'type' => 'required|in:caces,autorisation_conduite,habilitation,permis_feu,fds,plan_acces,convention_pret,autre',
+            'label' => 'nullable|string|max:255',
+        ]);
+
+        $file = $request->file('file');
+        $ext = $file->getClientOriginalExtension();
+        $relativePath = "pdp/{$pdp->uuid}/uploads/".uniqid('doc_').".{$ext}";
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        if (! is_dir(dirname($absolutePath))) {
+            mkdir(dirname($absolutePath), 0775, true);
+        }
+        $file->move(dirname($absolutePath), basename($absolutePath));
+
+        $doc = $pdp->documents()->create([
+            'type' => $request->input('type', 'autre'),
+            'label' => $request->input('label'),
+            'path' => $relativePath,
+            'original_filename' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
+            'size' => $file->getSize(),
+            'uploaded_by' => 'prestataire',
+        ]);
+
+        $this->logAudit($pdp, 'uploaded_document', $request, [
+            'filename' => $doc->original_filename,
+            'type' => $doc->type,
+        ]);
+
+        return response()->json([
+            'id' => $doc->id,
+            'filename' => $doc->original_filename,
+            'type' => $doc->type,
+            'label' => $doc->label,
+            'size' => $doc->size,
+            'download_url' => route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]),
+        ]);
+    }
+
+    public function deleteDocument(string $token, int $docId, Request $request)
+    {
+        $pdp = $this->resolveToken($token);
+        $doc = $pdp->documents()->where('id', $docId)->where('uploaded_by', 'prestataire')->first();
+        if (! $doc) abort(404);
+
+        if (file_exists(storage_path('app/'.$doc->path))) {
+            @unlink(storage_path('app/'.$doc->path));
+        }
+        $doc->delete();
+
+        $this->logAudit($pdp, 'deleted_document', $request);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function downloadDocument(string $token, int $docId)
+    {
+        $pdp = $this->resolveToken($token);
+        $doc = $pdp->documents()->where('id', $docId)->first();
+        if (! $doc) abort(404);
+        return response()->download(storage_path('app/'.$doc->path), $doc->original_filename);
+    }
+
+    /**
      * Le prestataire soumet sa partie pour validation par SALTI.
      */
     public function submit(string $token, Request $request): RedirectResponse

@@ -60,8 +60,8 @@
                     <a href="{{ route('dashboard') }}" class="text-sm hover:text-salti-yellow">Tableau de bord</a>
                     <a href="{{ route('pdp.choose-mode') }}" class="text-sm hover:text-salti-yellow">+ Nouveau PDP</a>
                     @if(auth()->user()->isQseAdmin())
-                        <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Administration</a>
-                        <a href="{{ route('pdp.calibration') }}" target="_blank" class="text-sm hover:text-salti-yellow">📐 Calibration</a>
+                        <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Agences</a>
+                        <a href="{{ route('admin.settings') }}" class="text-sm hover:text-salti-yellow">📁 Réglages</a>
                     @endif
                 </div>
 
@@ -93,8 +93,8 @@
                 <a href="{{ route('dashboard') }}" class="block py-2 text-sm hover:text-salti-yellow">📋 Tableau de bord</a>
                 <a href="{{ route('pdp.choose-mode') }}" class="block py-2 text-sm hover:text-salti-yellow">➕ Nouveau PDP</a>
                 @if(auth()->user()->isQseAdmin())
-                    <a href="{{ route('admin.agencies.index') }}" class="block py-2 text-sm hover:text-salti-yellow">⚙ Administration</a>
-                    <a href="{{ route('pdp.calibration') }}" target="_blank" class="block py-2 text-sm hover:text-salti-yellow">📐 Calibration</a>
+                    <a href="{{ route('admin.agencies.index') }}" class="block py-2 text-sm hover:text-salti-yellow">⚙ Agences</a>
+                    <a href="{{ route('admin.settings') }}" class="block py-2 text-sm hover:text-salti-yellow">📁 Réglages globaux</a>
                 @endif
                 <div class="border-t border-gray-800 pt-2 mt-2">
                     <div class="text-xs text-gray-400 py-1">

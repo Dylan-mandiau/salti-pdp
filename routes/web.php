@@ -55,7 +55,20 @@ Route::middleware('auth')->group(function () {
         Route::patch('/agencies/{agency}', [App\Http\Controllers\AdminController::class, 'updateAgency'])->name('agencies.update');
         Route::post('/agencies/{agency}/reset-password', [App\Http\Controllers\AdminController::class, 'resetPassword'])->name('agencies.reset-password');
         Route::delete('/agencies/{agency}', [App\Http\Controllers\AdminController::class, 'destroyAgency'])->name('agencies.destroy');
+
+        // Plan d'accès par agence
+        Route::post('/agencies/{agency}/plan', [App\Http\Controllers\AdminController::class, 'uploadAgencyPlan'])->name('agencies.upload-plan');
+        Route::delete('/agencies/{agency}/plan', [App\Http\Controllers\AdminController::class, 'deleteAgencyPlan'])->name('agencies.delete-plan');
+        Route::get('/agencies/{agency}/plan', [App\Http\Controllers\AdminController::class, 'downloadAgencyPlan'])->name('agencies.download-plan');
+
+        // Réglages globaux : Permis feu + Convention prêt
+        Route::get('/settings', [App\Http\Controllers\AdminController::class, 'settings'])->name('settings');
+        Route::post('/settings/{type}', [App\Http\Controllers\AdminController::class, 'uploadGlobalFile'])->name('settings.upload');
+        Route::delete('/settings/{type}', [App\Http\Controllers\AdminController::class, 'deleteGlobalFile'])->name('settings.delete');
     });
+
+    // Téléchargement des fichiers globaux (accessible à tous les utilisateurs SALTI)
+    Route::get('/global-files/{type}', [App\Http\Controllers\AdminController::class, 'downloadGlobalFile'])->name('global-files.download');
 });
 
 // ─── Espace Prestataire (accès public via lien magique) ─────────────────
@@ -63,5 +76,8 @@ Route::get('/p/{token}', [PrestataireAccessController::class, 'show'])->name('pr
 Route::post('/p/{token}/save', [PrestataireAccessController::class, 'autoSave'])->name('prestataire.save');
 Route::post('/p/{token}/submit', [PrestataireAccessController::class, 'submit'])->name('prestataire.submit');
 Route::post('/p/{token}/sign', [PrestataireAccessController::class, 'sign'])->name('prestataire.sign');
+Route::post('/p/{token}/upload', [PrestataireAccessController::class, 'uploadDocument'])->name('prestataire.upload');
+Route::delete('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'deleteDocument'])->name('prestataire.delete-document');
+Route::get('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'downloadDocument'])->name('prestataire.download-document');
 
 require __DIR__.'/auth.php';

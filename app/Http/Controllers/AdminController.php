@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Espace administration réservé au compte QSE central.
@@ -142,6 +145,138 @@ class AdminController extends Controller
 
         return redirect()->route('admin.agencies.index')
             ->with('success', "Mot de passe réinitialisé pour {$agency->email} :\n  Nouveau mot de passe : {$plainPassword}\n\n⚠ Notez-le et transmettez-le à l'agence — il ne sera plus affiché.");
+    }
+
+    /**
+     * Upload du Plan d'accès / circulation / zone d'attente pour cette agence.
+     * Le fichier est stocké dans storage/app/agency-files/{agency_id}/access-plan.{ext}
+     */
+    public function uploadAgencyPlan(User $agency, Request $request): RedirectResponse
+    {
+        $this->ensureQseAdmin();
+
+        $request->validate([
+            'access_plan' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240', // 10 MB
+        ]);
+
+        $file = $request->file('access_plan');
+        $ext = $file->getClientOriginalExtension();
+        $relativePath = "agency-files/{$agency->id}/access-plan.{$ext}";
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        if (! is_dir(dirname($absolutePath))) {
+            mkdir(dirname($absolutePath), 0775, true);
+        }
+
+        // Supprime l'ancien fichier si présent
+        if ($agency->access_plan_path && file_exists(storage_path('app/'.$agency->access_plan_path))) {
+            @unlink(storage_path('app/'.$agency->access_plan_path));
+        }
+
+        $file->move(dirname($absolutePath), basename($absolutePath));
+        $agency->update([
+            'access_plan_path' => $relativePath,
+            'access_plan_filename' => $file->getClientOriginalName(),
+        ]);
+
+        return back()->with('success', 'Plan d\'accès mis à jour pour '.$agency->name);
+    }
+
+    public function deleteAgencyPlan(User $agency): RedirectResponse
+    {
+        $this->ensureQseAdmin();
+
+        if ($agency->access_plan_path && file_exists(storage_path('app/'.$agency->access_plan_path))) {
+            @unlink(storage_path('app/'.$agency->access_plan_path));
+        }
+        $agency->update(['access_plan_path' => null, 'access_plan_filename' => null]);
+
+        return back()->with('success', 'Plan d\'accès supprimé.');
+    }
+
+    public function downloadAgencyPlan(User $agency)
+    {
+        $this->ensureQseAdmin();
+        if (! $agency->access_plan_path) abort(404);
+        return response()->download(storage_path('app/'.$agency->access_plan_path), $agency->access_plan_filename);
+    }
+
+    /**
+     * Page Settings : gestion des fichiers globaux (Permis feu, Convention de prêt).
+     * Ces fichiers sont les MÊMES pour toutes les agences.
+     */
+    public function settings(): View
+    {
+        $this->ensureQseAdmin();
+        return view('admin.settings.index', [
+            'permisFeu' => [
+                'path' => AppSetting::get('permis_feu_path'),
+                'filename' => AppSetting::get('permis_feu_filename'),
+            ],
+            'conventionPret' => [
+                'path' => AppSetting::get('convention_pret_path'),
+                'filename' => AppSetting::get('convention_pret_filename'),
+            ],
+        ]);
+    }
+
+    public function uploadGlobalFile(Request $request, string $type): RedirectResponse
+    {
+        $this->ensureQseAdmin();
+
+        $allowed = ['permis_feu', 'convention_pret'];
+        if (! in_array($type, $allowed, true)) {
+            abort(404);
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $file = $request->file('file');
+        $ext = $file->getClientOriginalExtension();
+        $relativePath = "global-files/{$type}.{$ext}";
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        if (! is_dir(dirname($absolutePath))) {
+            mkdir(dirname($absolutePath), 0775, true);
+        }
+
+        $oldPath = AppSetting::get("{$type}_path");
+        if ($oldPath && file_exists(storage_path('app/'.$oldPath))) {
+            @unlink(storage_path('app/'.$oldPath));
+        }
+
+        $file->move(dirname($absolutePath), basename($absolutePath));
+        AppSetting::set("{$type}_path", $relativePath);
+        AppSetting::set("{$type}_filename", $file->getClientOriginalName());
+
+        $labels = ['permis_feu' => 'Permis feu', 'convention_pret' => 'Convention de prêt de matériel'];
+
+        return back()->with('success', $labels[$type].' mis à jour.');
+    }
+
+    public function deleteGlobalFile(string $type): RedirectResponse
+    {
+        $this->ensureQseAdmin();
+
+        $oldPath = AppSetting::get("{$type}_path");
+        if ($oldPath && file_exists(storage_path('app/'.$oldPath))) {
+            @unlink(storage_path('app/'.$oldPath));
+        }
+        AppSetting::forget("{$type}_path");
+        AppSetting::forget("{$type}_filename");
+
+        return back()->with('success', 'Fichier supprimé.');
+    }
+
+    public function downloadGlobalFile(string $type)
+    {
+        // Public access (signed link not needed for now — agency users + QSE)
+        $path = AppSetting::get("{$type}_path");
+        $filename = AppSetting::get("{$type}_filename");
+        if (! $path) abort(404);
+        return response()->download(storage_path('app/'.$path), $filename ?: $type.'.pdf');
     }
 
     /**
