@@ -41,16 +41,37 @@ class PrestataireAccessController extends Controller
 
         $payload = $request->input('data', []);
 
-        // On limite strictement aux clés autorisées côté prestataire
-        $allowed = ['ee', 'autres_risques', 'risques'];
+        // 1) Mise à jour des données JSON (clés autorisées côté prestataire)
+        $allowed = ['ee', 'autres_risques', 'risques', 'documents_remis_salti'];
         $data = $pdp->data;
         foreach ($allowed as $key) {
             if (isset($payload[$key])) {
-                $data[$key] = array_replace_recursive($data[$key] ?? [], $payload[$key]);
+                if ($key === 'autres_risques') {
+                    // Remplacement complet du tableau (pas de merge profond)
+                    $data[$key] = $payload[$key];
+                } else {
+                    $data[$key] = array_replace_recursive($data[$key] ?? [], $payload[$key]);
+                }
             }
         }
         $pdp->data = $data;
         $pdp->save();
+
+        // 2) Mise à jour des intervenants (table dédiée)
+        if (isset($payload['intervenants']) && is_array($payload['intervenants'])) {
+            // Stratégie simple : on supprime tout et on recrée. Acceptable car table petite (3-4 lignes max)
+            $pdp->intervenants()->delete();
+            foreach ($payload['intervenants'] as $iv) {
+                if (empty($iv['nom_prenom']) && empty($iv['habilitation'])) {
+                    continue;
+                }
+                $pdp->intervenants()->create([
+                    'nom_prenom' => $iv['nom_prenom'] ?? '',
+                    'habilitation' => $iv['habilitation'] ?? null,
+                    'habilitation_validity' => ! empty($iv['habilitation_validity']) ? $iv['habilitation_validity'] : null,
+                ]);
+            }
+        }
 
         return response()->json(['saved_at' => now()->format('H:i:s'), 'status' => 'ok']);
     }

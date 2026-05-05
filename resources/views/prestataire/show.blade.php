@@ -85,6 +85,93 @@
             </div>
         </div>
 
+        {{-- Documents que vous remettez à SALTI --}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="font-semibold mb-4">Documents que vous remettez à SALTI</h2>
+            <p class="text-sm text-gray-600 mb-3">Cochez les documents fournis pour cette intervention.</p>
+            <div class="space-y-2">
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" data-cb-path="documents_remis_salti.autorisation_conduite" {{ ($data['documents_remis_salti']['autorisation_conduite'] ?? false) ? 'checked' : '' }} class="mt-0.5">
+                    <span class="text-sm">Autorisation de conduite</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" data-cb-path="documents_remis_salti.caces" {{ ($data['documents_remis_salti']['caces'] ?? false) ? 'checked' : '' }} class="mt-0.5">
+                    <span class="text-sm">CACES</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" data-cb-path="documents_remis_salti.habilitations" {{ ($data['documents_remis_salti']['habilitations'] ?? false) ? 'checked' : '' }} class="mt-0.5">
+                    <span class="text-sm">Habilitations</span>
+                </label>
+            </div>
+        </div>
+
+        {{-- Habilitations / CACES de vos salariés --}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="font-semibold mb-2">Autorisations de conduite & habilitations de vos salariés</h2>
+            <p class="text-sm text-gray-600 mb-3">Renseignez ci-dessous les salariés qui interviendront sur le site SALTI avec leurs habilitations valides.</p>
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Salarié (Nom Prénom)</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Habilitation / CACES</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date validité</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="hab-table">
+                        @php
+                            // 3 lignes minimum, plus si déjà saisies
+                            $habs = $pdp->intervenants()->whereNotNull('habilitation')->orderBy('id')->get();
+                            $habCount = max(3, $habs->count() + 1);
+                        @endphp
+                        @for($i = 0; $i < $habCount; $i++)
+                            @php $h = $habs->get($i); @endphp
+                            <tr>
+                                <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="nom_prenom" value="{{ $h->nom_prenom ?? '' }}" placeholder="Nom Prénom" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="habilitation" value="{{ $h->habilitation ?? '' }}" placeholder="ex. CACES R489 cat 3" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-2 py-2"><input type="date" data-hab-row="{{ $i }}" data-hab-field="habilitation_validity" value="{{ $h?->habilitation_validity?->format('Y-m-d') ?? '' }}" class="w-full border-0 text-sm focus:ring-0"></td>
+                            </tr>
+                        @endfor
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">⚠ Les habilitations doivent être valides à la date de début de l'intervention.</p>
+        </div>
+
+        {{-- Autres risques que vous identifiez --}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="font-semibold mb-2">Autres risques identifiés</h2>
+            <p class="text-sm text-gray-600 mb-3">Ajoutez les risques spécifiques à votre intervention qui ne sont pas dans la liste standard SALTI.</p>
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Situation</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Risque</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Mesure préventive</th>
+                            <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">EU</th>
+                            <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">EE</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @php
+                            $autresRisques = $data['autres_risques'] ?? [];
+                            while (count($autresRisques) < 5) $autresRisques[] = [];
+                        @endphp
+                        @foreach($autresRisques as $i => $ar)
+                            <tr>
+                                <td class="px-2 py-2"><input type="text" data-ar-row="{{ $i }}" data-ar-field="situation" value="{{ $ar['situation'] ?? '' }}" placeholder="Situation" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-2 py-2"><input type="text" data-ar-row="{{ $i }}" data-ar-field="risque" value="{{ $ar['risque'] ?? '' }}" placeholder="Risque" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-2 py-2"><input type="text" data-ar-row="{{ $i }}" data-ar-field="mesure" value="{{ $ar['mesure'] ?? '' }}" placeholder="Mesure" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-3 py-2 text-center"><input type="checkbox" data-ar-row="{{ $i }}" data-ar-field="eu" {{ ($ar['eu'] ?? false) ? 'checked' : '' }}></td>
+                                <td class="px-3 py-2 text-center"><input type="checkbox" data-ar-row="{{ $i }}" data-ar-field="ee" {{ ($ar['ee'] ?? false) ? 'checked' : '' }}></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         @if(! $isLocked && ! $pdp->signed_by_prestataire_at)
             @if($pdp->status === 'awaiting_prestataire' || $pdp->status === 'corrections_requested')
                 <form method="POST" action="{{ route('prestataire.submit', $token) }}"
@@ -128,39 +215,63 @@
     const TOKEN = @json($token);
     const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
-    // Auto-save
+    // Auto-save : déclenche sur tout input/change des éléments balisés
     let saveTimer;
-    document.querySelectorAll('[data-path], .ee-radio').forEach(el => {
-        el.addEventListener('input', () => {
+    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-hab-row], [data-ar-row]').forEach(el => {
+        ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
             clearTimeout(saveTimer);
             saveTimer = setTimeout(autoSave, 800);
-        });
-        el.addEventListener('change', () => {
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(autoSave, 800);
-        });
+        }));
     });
+
+    function setDeep(obj, path, value) {
+        const parts = path.split('.');
+        let cur = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            cur[parts[i]] = cur[parts[i]] || {};
+            cur = cur[parts[i]];
+        }
+        cur[parts[parts.length - 1]] = value;
+    }
 
     async function autoSave() {
         const data = {};
+
+        // 1. Champs texte/email/tel : data-path → data[path] = value
         document.querySelectorAll('[data-path]').forEach(el => {
-            const path = el.dataset.path.split('.');
-            let cur = data;
-            for (let i = 0; i < path.length - 1; i++) {
-                cur[path[i]] = cur[path[i]] || {};
-                cur = cur[path[i]];
-            }
-            cur[path[path.length - 1]] = el.value;
+            setDeep(data, el.dataset.path, el.value);
         });
+
+        // 2. Radios .ee-radio (oui/non sous-traitance)
         document.querySelectorAll('.ee-radio:checked').forEach(el => {
-            const path = el.name.split('.');
-            let cur = data;
-            for (let i = 0; i < path.length - 1; i++) {
-                cur[path[i]] = cur[path[i]] || {};
-                cur = cur[path[i]];
-            }
-            cur[path[path.length - 1]] = el.value;
+            setDeep(data, el.name, el.value);
         });
+
+        // 3. Checkboxes des documents EE → data-cb-path
+        document.querySelectorAll('[data-cb-path]').forEach(el => {
+            setDeep(data, el.dataset.cbPath, el.checked);
+        });
+
+        // 4. Tableau Habilitations (lignes salariés)
+        const habs = {};
+        document.querySelectorAll('[data-hab-row]').forEach(el => {
+            const i = el.dataset.habRow;
+            const f = el.dataset.habField;
+            habs[i] = habs[i] || {};
+            habs[i][f] = el.value;
+        });
+        // On envoie sous data.intervenants (le contrôleur côté serveur le mappera)
+        data.intervenants = Object.values(habs).filter(h => h.nom_prenom || h.habilitation);
+
+        // 5. Tableau "Autres risques"
+        const autres = {};
+        document.querySelectorAll('[data-ar-row]').forEach(el => {
+            const i = el.dataset.arRow;
+            const f = el.dataset.arField;
+            autres[i] = autres[i] || {};
+            autres[i][f] = el.type === 'checkbox' ? el.checked : el.value;
+        });
+        data.autres_risques = Object.values(autres);
 
         try {
             const r = await fetch(`/p/${TOKEN}/save`, {
@@ -169,8 +280,8 @@
                 body: JSON.stringify({ data })
             });
             const d = await r.json();
-            const el = document.querySelector('[x-data]').__x.$data;
-            if (d.saved_at) el.lastSaved = `Enregistré à ${d.saved_at}`;
+            const root = document.querySelector('[x-data]').__x?.$data;
+            if (root && d.saved_at) root.lastSaved = `Enregistré à ${d.saved_at}`;
         } catch (e) {
             console.error(e);
         }

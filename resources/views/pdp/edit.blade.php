@@ -42,64 +42,19 @@
         </div>
     </div>
 
-    {{-- Panneau de validation / cohérence --}}
-    @if($validation['errors_count'] > 0 || $validation['warnings_count'] > 0)
-        <div x-data="{ open: false }" class="mb-4">
-            <button type="button" @click="open = !open"
-                    class="w-full flex items-center justify-between px-4 py-3 rounded-lg shadow-sm border
-                           {{ $validation['errors_count'] > 0 ? 'bg-red-50 border-red-300 text-red-900' : 'bg-orange-50 border-orange-300 text-orange-900' }}
-                           hover:bg-opacity-80 transition">
-                <span class="font-medium text-sm">
-                    @if($validation['errors_count'] > 0)
-                        🔴 <strong>{{ $validation['errors_count'] }} erreur(s) bloquante(s)</strong>
-                    @endif
-                    @if($validation['warnings_count'] > 0)
-                        @if($validation['errors_count'] > 0) · @endif
-                        🟠 {{ $validation['warnings_count'] }} avertissement(s)
-                    @endif
-                    @if($validation['errors_count'] > 0)
-                        — la validation et les signatures sont bloquées tant que les erreurs ne sont pas corrigées.
-                    @endif
+    {{-- Petit indicateur silencieux sur les étapes 1-5 (juste un compteur) --}}
+    @if($step !== 6 && ($validation['errors_count'] > 0 || $validation['warnings_count'] > 0))
+        <div class="mb-3 text-xs text-gray-500 flex items-center gap-3">
+            @if($validation['errors_count'] > 0)
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 text-red-700">
+                    🔴 {{ $validation['errors_count'] }} erreur(s) — détail à l'étape 6
                 </span>
-                <span x-text="open ? '▲ Masquer' : '▼ Voir le détail'" class="text-xs"></span>
-            </button>
-
-            <div x-show="open" x-cloak class="mt-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
-                @if($validation['errors_count'] > 0)
-                    <div class="px-4 py-3 bg-red-50 border-b border-red-200">
-                        <div class="text-xs font-semibold text-red-900 mb-2 uppercase tracking-wide">🔴 Erreurs bloquantes ({{ $validation['errors_count'] }})</div>
-                        <ul class="space-y-1 text-sm text-red-900">
-                            @foreach($validation['errors'] as $err)
-                                <li>
-                                    @if($err['step'])
-                                        <a href="?step={{ $err['step'] }}" class="underline hover:text-red-700">[Étape {{ $err['step'] }}]</a>
-                                    @endif
-                                    {{ $err['message'] }}
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-                @if($validation['warnings_count'] > 0)
-                    <div class="px-4 py-3 bg-orange-50">
-                        <div class="text-xs font-semibold text-orange-900 mb-2 uppercase tracking-wide">🟠 Avertissements ({{ $validation['warnings_count'] }})</div>
-                        <ul class="space-y-1 text-sm text-orange-900">
-                            @foreach($validation['warnings'] as $warn)
-                                <li>
-                                    @if($warn['step'])
-                                        <a href="?step={{ $warn['step'] }}" class="underline hover:text-orange-700">[Étape {{ $warn['step'] }}]</a>
-                                    @endif
-                                    {{ $warn['message'] }}
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @elseif($pdp->status !== 'signed')
-        <div class="mb-4 px-4 py-3 bg-green-50 border border-green-300 text-green-900 rounded-lg shadow-sm text-sm">
-            ✅ Aucune erreur détectée — vous pouvez valider et signer.
+            @endif
+            @if($validation['warnings_count'] > 0)
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-orange-50 text-orange-700">
+                    🟠 {{ $validation['warnings_count'] }} avertissement(s)
+                </span>
+            @endif
         </div>
     @endif
 
@@ -289,21 +244,26 @@
             <p class="text-sm text-gray-500 mb-6">Cochez les EPI obligatoires sur le site, puis indiquez les risques applicables.</p>
 
             <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">EPI obligatoires sur le site</h3>
+            <p class="text-xs text-gray-500 mb-3">Cliquez sur une carte pour cocher/décocher l'EPI.</p>
             <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 mb-4">
                 @foreach([
-                    'chaussures' => '👟 Chaussures',
-                    'gants' => '🧤 Gants',
-                    'casque' => '⛑ Casque',
-                    'lunettes' => '🥽 Lunettes',
-                    'masque' => '😷 Masque',
-                    'auditives' => '🎧 Auditives',
-                    'gilet_hv' => '🦺 Gilet HV',
-                    'harnais' => '🪢 Harnais',
-                ] as $key => $label)
-                    <label class="flex flex-col items-center cursor-pointer p-3 border-2 rounded-lg hover:border-salti-yellow transition {{ ($epi[$key] ?? false) ? 'border-salti-yellow bg-salti-yellow/5' : 'border-gray-200' }}">
-                        <input type="checkbox" name="epi.{{ $key }}" @change="save()" {{ ($epi[$key] ?? false) ? 'checked' : '' }} class="sr-only">
-                        <span class="text-2xl mb-1">{{ explode(' ', $label)[0] }}</span>
-                        <span class="text-xs">{{ explode(' ', $label, 2)[1] ?? '' }}</span>
+                    'chaussures' => ['Chaussures', '/pdf-assets/epi-chaussures.png'],
+                    'gants'      => ['Gants', '/pdf-assets/epi-gants.png'],
+                    'casque'     => ['Casque', '/pdf-assets/epi-casque.png'],
+                    'lunettes'   => ['Lunettes', '/pdf-assets/epi-lunettes.png'],
+                    'masque'     => ['Masque', '/pdf-assets/epi-masque.png'],
+                    'auditives'  => ['Auditives', '/pdf-assets/epi-auditives.png'],
+                    'gilet_hv'   => ['Gilet HV', '/pdf-assets/epi-gilet-hv.png'],
+                    'harnais'    => ['Harnais', '/pdf-assets/epi-harnais.jpg'],
+                ] as $key => [$label, $img])
+                    <label class="cursor-pointer block">
+                        <input type="checkbox" name="epi.{{ $key }}" @change="save()" {{ ($epi[$key] ?? false) ? 'checked' : '' }} class="sr-only peer">
+                        <div class="flex flex-col items-center p-3 border-2 rounded-lg transition
+                                    border-gray-200 hover:border-salti-yellow
+                                    peer-checked:border-salti-yellow peer-checked:bg-salti-yellow/10 peer-checked:shadow-md">
+                            <img src="{{ $img }}" alt="{{ $label }}" class="h-10 w-auto mb-1" style="max-width:60px">
+                            <span class="text-xs text-center font-medium">{{ $label }}</span>
+                        </div>
                     </label>
                 @endforeach
             </div>
@@ -401,9 +361,85 @@
         @endif
 
         {{-- ════════════════════════════════════════════════════════════════
-             ÉTAPE 6 : Signatures
+             ÉTAPE 6 : Analyse de cohérence + Signatures
              ════════════════════════════════════════════════════════════════ --}}
         @if($step === 6)
+            <h2 class="text-lg font-semibold mb-4">Analyse de cohérence</h2>
+            <p class="text-sm text-gray-500 mb-4">Vérification automatique avant validation. Corrigez les erreurs 🔴 pour pouvoir signer.</p>
+
+            {{-- Bilan global --}}
+            @if($validation['errors_count'] === 0 && $validation['warnings_count'] === 0)
+                <div class="mb-6 px-4 py-4 bg-green-50 border border-green-300 text-green-900 rounded-lg">
+                    ✅ <strong>Aucune anomalie détectée</strong> — le PDP peut être validé et signé.
+                </div>
+            @else
+                <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="px-4 py-3 rounded-lg border {{ $validation['errors_count'] > 0 ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200 opacity-60' }}">
+                        <div class="text-xs uppercase font-semibold {{ $validation['errors_count'] > 0 ? 'text-red-900' : 'text-gray-500' }}">🔴 Erreurs bloquantes</div>
+                        <div class="text-3xl font-bold mt-1 {{ $validation['errors_count'] > 0 ? 'text-red-900' : 'text-gray-400' }}">{{ $validation['errors_count'] }}</div>
+                    </div>
+                    <div class="px-4 py-3 rounded-lg border {{ $validation['warnings_count'] > 0 ? 'bg-orange-50 border-orange-300' : 'bg-gray-50 border-gray-200 opacity-60' }}">
+                        <div class="text-xs uppercase font-semibold {{ $validation['warnings_count'] > 0 ? 'text-orange-900' : 'text-gray-500' }}">🟠 Avertissements</div>
+                        <div class="text-3xl font-bold mt-1 {{ $validation['warnings_count'] > 0 ? 'text-orange-900' : 'text-gray-400' }}">{{ $validation['warnings_count'] }}</div>
+                    </div>
+                    <div class="px-4 py-3 rounded-lg border {{ $validation['infos_count'] > 0 ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 opacity-60' }}">
+                        <div class="text-xs uppercase font-semibold {{ $validation['infos_count'] > 0 ? 'text-blue-900' : 'text-gray-500' }}">🔵 Informations</div>
+                        <div class="text-3xl font-bold mt-1 {{ $validation['infos_count'] > 0 ? 'text-blue-900' : 'text-gray-400' }}">{{ $validation['infos_count'] }}</div>
+                    </div>
+                </div>
+
+                @if($validation['errors_count'] > 0)
+                    <div class="mb-4 bg-white border-2 border-red-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-red-50 border-b border-red-200">
+                            <div class="text-sm font-semibold text-red-900 uppercase tracking-wide">🔴 Erreurs bloquantes</div>
+                        </div>
+                        <ul class="divide-y divide-gray-100">
+                            @foreach($validation['errors'] as $err)
+                                <li class="px-4 py-2 text-sm text-gray-900 flex justify-between items-center gap-3">
+                                    <span>{{ $err['message'] }}</span>
+                                    @if($err['step'])
+                                        <a href="?step={{ $err['step'] }}" class="text-xs whitespace-nowrap text-red-700 hover:underline font-medium">→ Étape {{ $err['step'] }}</a>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if($validation['warnings_count'] > 0)
+                    <div class="mb-4 bg-white border-2 border-orange-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-orange-50 border-b border-orange-200">
+                            <div class="text-sm font-semibold text-orange-900 uppercase tracking-wide">🟠 Avertissements (n'empêchent pas la validation)</div>
+                        </div>
+                        <ul class="divide-y divide-gray-100">
+                            @foreach($validation['warnings'] as $warn)
+                                <li class="px-4 py-2 text-sm text-gray-900 flex justify-between items-center gap-3">
+                                    <span>{{ $warn['message'] }}</span>
+                                    @if($warn['step'])
+                                        <a href="?step={{ $warn['step'] }}" class="text-xs whitespace-nowrap text-orange-700 hover:underline font-medium">→ Étape {{ $warn['step'] }}</a>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if($validation['infos_count'] > 0)
+                    <div class="mb-6 bg-white border-2 border-blue-200 rounded-lg overflow-hidden">
+                        <div class="px-4 py-2 bg-blue-50 border-b border-blue-200">
+                            <div class="text-sm font-semibold text-blue-900 uppercase tracking-wide">🔵 Informations</div>
+                        </div>
+                        <ul class="divide-y divide-gray-100">
+                            @foreach($validation['infos'] as $info)
+                                <li class="px-4 py-2 text-sm text-gray-700">{{ $info['message'] }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            @endif
+
+            <hr class="my-6">
+
             <h2 class="text-lg font-semibold mb-4">Signatures</h2>
 
             @if($pdp->status === 'awaiting_signatures' || $pdp->status === 'signed')
