@@ -360,6 +360,11 @@
                class="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded text-sm">
                 👁 Aperçu PDF
             </a>
+            <a href="{{ route('pdp.download', $pdp) }}"
+               class="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded text-sm"
+               title="Télécharger le PDF (version courante, pas forcément signée)">
+                📥 Télécharger
+            </a>
             @if($pdp->mode === 'distance' && $pdp->status === 'draft')
                 <button @click="showSendModal = true"
                         class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">
