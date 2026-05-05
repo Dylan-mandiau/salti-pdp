@@ -138,10 +138,55 @@
             <p class="text-xs text-gray-500 mt-2">⚠ Les habilitations doivent être valides à la date de début de l'intervention.</p>
         </div>
 
+        {{-- Liste des risques standards SALTI déjà identifiés (lecture seule) --}}
+        @php
+            $risquesStandard = [
+                'arrivee_site' => 'Arrivée sur le site',
+                'circulation_interne' => 'Circulation interne (véhicule, engin, à pied)',
+                'stationnement' => 'Stationnement, entreposage',
+                'sols_souilles' => 'Sols souillés (produits, liquides, outils)',
+                'travail_hauteur' => 'Travail en hauteur — Utilisation d\'une nacelle',
+                'levage_manutention' => 'Levage et manutention',
+                'soudure_decoupe' => 'Soudure / Découpe de matériaux',
+                'dechets' => 'Déchets produits par l\'activité',
+                'electrique' => 'Intervention sur installations électriques',
+                'produits_chimiques' => 'Utilisation de produits chimiques dangereux',
+                'flexibles_engins' => 'Intervention sur flexibles d\'engins',
+                'multi_interventions' => 'Multi interventions',
+                'contamination' => 'Contamination (exposition, grippe, virus…)',
+            ];
+            $risquesData = $data['risques'] ?? [];
+        @endphp
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 class="font-semibold mb-2 text-blue-900">📋 Risques standards SALTI déjà couverts</h2>
+            <p class="text-sm text-blue-800 mb-4">
+                Voici les risques d'interférence prévus dans le PDP standard SALTI. Vous n'avez <strong>pas besoin</strong> de les redéclarer ci-dessous — ils sont gérés par SALTI dans le wizard.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                @foreach($risquesStandard as $key => $label)
+                    @php $applicable = $risquesData[$key]['applicable'] ?? false; @endphp
+                    <div class="flex items-start gap-2 text-sm bg-white p-2 rounded border {{ $applicable ? 'border-salti-yellow' : 'border-gray-200' }}">
+                        <span class="mt-0.5">{{ $applicable ? '☒' : '☐' }}</span>
+                        <span class="{{ $applicable ? 'font-semibold' : 'text-gray-600' }}">
+                            {{ $label }}
+                            @if($applicable)
+                                <span class="text-xs text-salti-yellow-dark ml-1">— applicable à votre intervention</span>
+                            @endif
+                        </span>
+                    </div>
+                @endforeach
+            </div>
+            <p class="text-xs text-blue-700 mt-4">
+                💡 <strong>Si un risque ci-dessus n'est pas coché par SALTI alors qu'il devrait l'être</strong>, signalez-le par email à votre interlocuteur SALTI ou utilisez la section ci-dessous pour le mentionner.
+            </p>
+        </div>
+
         {{-- Autres risques que vous identifiez --}}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 class="font-semibold mb-2">Autres risques identifiés</h2>
-            <p class="text-sm text-gray-600 mb-3">Ajoutez les risques spécifiques à votre intervention qui ne sont pas dans la liste standard SALTI.</p>
+            <p class="text-sm text-gray-600 mb-3">
+                Si votre intervention présente des risques spécifiques <strong>non couverts par la liste ci-dessus</strong>, ajoutez-les ici. Sinon, laissez vide.
+            </p>
             <div class="overflow-x-auto">
                 <table class="w-full border border-gray-200 text-sm">
                     <thead class="bg-gray-50">
