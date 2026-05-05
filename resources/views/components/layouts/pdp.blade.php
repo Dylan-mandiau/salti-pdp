@@ -27,6 +27,10 @@
     {{-- signature_pad pour la capture de signature --}}
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
 
+    {{-- intl-tel-input pour les champs téléphone (drapeau France par défaut, validation, formatage) --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.12/build/css/intlTelInput.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.12/build/js/intlTelInput.min.js"></script>
+
     <style>
         /* Charte SALTI : jaune #FFDD00 / blanc / noir */
         body {
@@ -34,6 +38,9 @@
             background: #FFFFFF;
             color: #000000;
         }
+        /* Force la largeur 100% pour intl-tel-input wrapper */
+        .iti { width: 100%; }
+        .iti__country-list { z-index: 50; }
     </style>
 </head>
 <body class="min-h-screen bg-white text-black">
@@ -49,6 +56,9 @@
                     </a>
                     <a href="{{ route('dashboard') }}" class="text-sm hover:text-salti-yellow">Tableau de bord</a>
                     <a href="{{ route('pdp.choose-mode') }}" class="text-sm hover:text-salti-yellow">+ Nouveau PDP</a>
+                    @if(auth()->user()->isQseAdmin())
+                        <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Administration</a>
+                    @endif
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-300">
@@ -86,6 +96,31 @@
     <main class="py-6">
         {{ $slot }}
     </main>
+
+    {{-- Initialisation globale des champs téléphone (drapeau France par défaut) --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // intl-tel-input sur tous les inputs .pdp-tel-input
+            document.querySelectorAll('.pdp-tel-input').forEach(el => {
+                const iti = window.intlTelInput(el, {
+                    initialCountry: 'fr',
+                    preferredCountries: ['fr', 'be', 'ch', 'lu', 'es', 'pt', 'it', 'de', 'gb'],
+                    nationalMode: true,                          // affichage au format national
+                    autoPlaceholder: 'aggressive',
+                    formatOnDisplay: true,
+                    utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.12/build/js/utils.js',
+                });
+
+                // Filtre la saisie : autorise uniquement chiffres + espaces + + ( ) . -
+                el.addEventListener('input', () => {
+                    el.value = el.value.replace(/[^\d\s+()\-.]/g, '');
+                });
+
+                // Stocke l'instance pour pouvoir lire la valeur formatée si besoin
+                el._iti = iti;
+            });
+        });
+    </script>
 
 </body>
 </html>

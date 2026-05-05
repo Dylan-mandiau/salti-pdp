@@ -69,10 +69,35 @@
                 <div>
                     <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">Entreprise utilisatrice (SALTI)</h3>
                     <div class="space-y-3">
-                        @include('pdp.partials.input', ['name' => 'eu.agence', 'label' => 'Agence', 'value' => $data['eu']['agence'] ?? auth()->user()->city])
+                        @php
+                            $isQse = auth()->user()->isQseAdmin();
+                            $agencyOptions = $agencies->mapWithKeys(fn($a) => [
+                                $a->city ?? $a->name => $a->city ?? $a->name
+                            ])->toArray();
+                            $defaultAgency = $data['eu']['agence'] ?? (auth()->user()->city ?? auth()->user()->name);
+                        @endphp
+
+                        @if($isQse)
+                            {{-- QSE central : dropdown de toutes les agences --}}
+                            @include('pdp.partials.input', [
+                                'name' => 'eu.agence',
+                                'label' => 'Agence',
+                                'value' => $defaultAgency,
+                                'type' => 'select',
+                                'options' => $agencyOptions,
+                            ])
+                        @else
+                            {{-- Compte d'agence : pré-rempli avec son agence (modifiable) --}}
+                            @include('pdp.partials.input', [
+                                'name' => 'eu.agence',
+                                'label' => 'Agence',
+                                'value' => $defaultAgency,
+                            ])
+                        @endif
+
                         @include('pdp.partials.input', ['name' => 'eu.donneur_ordre', 'label' => 'Donneur d\'ordre', 'value' => $data['eu']['donneur_ordre'] ?? $pdp->donneur_ordre_nom])
                         @include('pdp.partials.input', ['name' => 'eu.address', 'label' => 'Adresse', 'value' => $data['eu']['address'] ?? null])
-                        @include('pdp.partials.input', ['name' => 'eu.phone', 'label' => 'Téléphone', 'value' => $data['eu']['phone'] ?? null])
+                        @include('pdp.partials.input', ['name' => 'eu.phone', 'label' => 'Téléphone', 'value' => $data['eu']['phone'] ?? null, 'type' => 'tel', 'maxlength' => 20])
                     </div>
                 </div>
                 {{-- Bloc EE --}}
@@ -82,7 +107,7 @@
                         @include('pdp.partials.input', ['name' => 'ee.raison_sociale', 'label' => 'Raison sociale', 'value' => $data['ee']['raison_sociale'] ?? null])
                         @include('pdp.partials.input', ['name' => 'ee.responsable_prestations', 'label' => 'Responsable des prestations', 'value' => $data['ee']['responsable_prestations'] ?? null])
                         @include('pdp.partials.input', ['name' => 'ee.address', 'label' => 'Adresse', 'value' => $data['ee']['address'] ?? null])
-                        @include('pdp.partials.input', ['name' => 'ee.phone', 'label' => 'Téléphone', 'value' => $data['ee']['phone'] ?? null])
+                        @include('pdp.partials.input', ['name' => 'ee.phone', 'label' => 'Téléphone', 'value' => $data['ee']['phone'] ?? null, 'type' => 'tel', 'maxlength' => 20])
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Travaux sous-traités ?</label>
                             <div class="flex gap-4">
@@ -115,10 +140,10 @@
                 </div>
                 @include('pdp.partials.input', ['name' => 'operation.designation', 'label' => 'Désignation', 'value' => $data['operation']['designation'] ?? null])
                 @include('pdp.partials.input', ['name' => 'operation.lieu', 'label' => 'Lieu (zone)', 'value' => $data['operation']['lieu'] ?? null])
-                @include('pdp.partials.input', ['name' => 'operation.date_debut', 'label' => 'Date de début', 'value' => $data['operation']['date_debut'] ?? null])
-                @include('pdp.partials.input', ['name' => 'operation.duree', 'label' => 'Durée prévisible', 'value' => $data['operation']['duree'] ?? null])
-                @include('pdp.partials.input', ['name' => 'operation.plages_horaires', 'label' => 'Plages horaires', 'value' => $data['operation']['plages_horaires'] ?? null])
-                @include('pdp.partials.input', ['name' => 'operation.nb_salaries', 'label' => 'Nombre de salariés', 'value' => $data['operation']['nb_salaries'] ?? null])
+                @include('pdp.partials.input', ['name' => 'operation.date_debut', 'label' => 'Date de début', 'value' => $data['operation']['date_debut'] ?? null, 'type' => 'date'])
+                @include('pdp.partials.input', ['name' => 'operation.duree', 'label' => 'Durée prévisible', 'value' => $data['operation']['duree'] ?? null, 'placeholder' => 'ex. 2 jours'])
+                @include('pdp.partials.input', ['name' => 'operation.plages_horaires', 'label' => 'Plages horaires', 'value' => $data['operation']['plages_horaires'] ?? null, 'placeholder' => 'ex. 08h-17h'])
+                @include('pdp.partials.input', ['name' => 'operation.nb_salaries', 'label' => 'Nombre de salariés', 'value' => $data['operation']['nb_salaries'] ?? null, 'type' => 'number'])
             </div>
         @endif
 
@@ -157,17 +182,35 @@
                     {{-- Signature EE --}}
                     <div class="border border-gray-200 rounded-lg p-4">
                         <h3 class="font-semibold mb-2">Représentant Entreprise Extérieure</h3>
-                        <p class="text-sm text-gray-600 mb-3">{{ $data['ee']['responsable_prestations'] ?? '—' }}</p>
 
                         @if($pdp->signed_by_prestataire_at)
+                            <p class="text-sm text-gray-600 mb-3">{{ $data['ee']['responsable_prestations'] ?? '—' }}</p>
                             <div class="bg-green-50 border border-green-200 text-green-800 p-3 rounded">
                                 ✓ Signé le {{ $pdp->signed_by_prestataire_at->format('d/m/Y H:i') }}
                             </div>
                         @elseif($pdp->mode === 'presentiel')
-                            <div class="text-sm text-gray-600 mb-3">En mode présentiel : passez l'écran au prestataire pour signature.</div>
-                            {{-- TODO: bouton "Passer la main au prestataire" --}}
+                            <p class="text-sm text-gray-600 mb-3">
+                                <span class="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-xs px-2 py-0.5 rounded">📱 Mode présentiel</span>
+                                Passez l'appareil au représentant pour qu'il signe.
+                            </p>
+                            <form method="POST" action="{{ route('pdp.sign-ee-presentiel', $pdp) }}">
+                                @csrf
+                                <input type="text" name="signature_nom" placeholder="Nom et prénom du représentant" required
+                                       value="{{ $data['ee']['responsable_prestations'] ?? '' }}"
+                                       class="w-full border border-gray-300 rounded px-3 py-2 mb-2 text-sm">
+                                <input type="text" name="signature_fonction" placeholder="Fonction" required
+                                       value="{{ $data['signature_ee_fonction'] ?? '' }}"
+                                       class="w-full border border-gray-300 rounded px-3 py-2 mb-3 text-sm">
+                                <canvas id="sig-ee" class="border-2 border-dashed border-gray-300 rounded w-full bg-white" height="160"></canvas>
+                                <input type="hidden" name="signature_data" id="sig-ee-data">
+                                <div class="flex gap-2 mt-2">
+                                    <button type="button" onclick="clearSig('ee')" class="text-sm text-gray-600">Effacer</button>
+                                    <button type="submit" onclick="return submitSig('ee')" class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
+                                </div>
+                            </form>
                         @else
-                            <div class="text-sm text-gray-600">En attente de la signature du prestataire (à distance).</div>
+                            <p class="text-sm text-gray-600 mb-3">{{ $data['ee']['responsable_prestations'] ?? '—' }}</p>
+                            <div class="text-sm text-gray-600">⏳ En attente de la signature du prestataire (à distance).</div>
                         @endif
                     </div>
 

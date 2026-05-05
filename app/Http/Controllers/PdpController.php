@@ -94,10 +94,19 @@ class PdpController extends Controller
             ? Prestataire::orderBy('raison_sociale')->get()
             : Prestataire::where('agency_id', Auth::id())->orderBy('raison_sociale')->get();
 
+        // Liste des agences :
+        // - QSE central : toutes les agences (pour le dropdown)
+        // - Compte d'agence : seulement la sienne (pré-rempli)
+        $agencies = User::where('role', User::ROLE_AGENCY)
+            ->orderBy('city')
+            ->orderBy('name')
+            ->get(['id', 'name', 'city']);
+
         return view('pdp.edit', [
             'pdp' => $pdp,
             'step' => $step,
             'prestataires' => $prestataires,
+            'agencies' => $agencies,
         ]);
     }
 
@@ -201,6 +210,7 @@ class PdpController extends Controller
 
     /**
      * Validation de la partie EE par SALTI (passage à "à signer").
+     * Reste sur l'étape signatures (step=6) après validation.
      */
     public function validateByCAlti(Pdp $pdp, Request $request): RedirectResponse
     {
@@ -213,7 +223,8 @@ class PdpController extends Controller
 
         $this->logAudit($pdp, 'validated_by_salti', $request);
 
-        return redirect()->route('pdp.edit', $pdp)->with('success', 'PDP validé. En attente des signatures.');
+        return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+            ->with('success', 'PDP validé. Vous pouvez maintenant signer.');
     }
 
     /**
@@ -238,10 +249,47 @@ class PdpController extends Controller
         ]);
 
         $this->logAudit($pdp, 'signed_by_salti', $request);
-
         $this->checkAllSigned($pdp);
 
-        return redirect()->route('pdp.edit', $pdp)->with('success', 'Signature enregistrée.');
+        return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+            ->with('success', 'Signature SALTI enregistrée.');
+    }
+
+    /**
+     * Signature EE en mode présentiel : SALTI passe l'appareil au prestataire,
+     * qui signe directement sur la même session.
+     * Vérifie d'abord que SALTI a déjà signé (workflow normal en présentiel).
+     */
+    public function signEePresentiel(Pdp $pdp, Request $request): RedirectResponse
+    {
+        $this->authorizePdp($pdp);
+
+        if ($pdp->mode !== Pdp::MODE_PRESENTIEL) {
+            abort(400, 'Cette action est réservée au mode présentiel.');
+        }
+
+        $request->validate([
+            'signature_data' => 'required|string',
+            'signature_fonction' => 'required|string|max:255',
+            'signature_nom' => 'required|string|max:255',
+        ]);
+
+        $data = $pdp->data;
+        $data['signature_ee'] = $request->input('signature_data');
+        $data['signature_ee_fonction'] = $request->input('signature_fonction');
+        // En présentiel, on capture aussi le nom du signataire EE
+        $data['ee']['responsable_prestations'] = $request->input('signature_nom');
+
+        $pdp->update([
+            'data' => $data,
+            'signed_by_prestataire_at' => now(),
+        ]);
+
+        $this->logAudit($pdp, 'signed_by_prestataire_presentiel', $request);
+        $this->checkAllSigned($pdp);
+
+        return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+            ->with('success', 'Signature de l\'entreprise extérieure enregistrée. PDP finalisé !');
     }
 
     /**

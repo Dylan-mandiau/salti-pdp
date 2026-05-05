@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/pdp/{pdp}/send', [PdpController::class, 'sendToPrestataire'])->name('pdp.send');
     Route::post('/pdp/{pdp}/validate', [PdpController::class, 'validateByCAlti'])->name('pdp.validate');
     Route::post('/pdp/{pdp}/sign-salti', [PdpController::class, 'signSalti'])->name('pdp.sign-salti');
+    Route::post('/pdp/{pdp}/sign-ee-presentiel', [PdpController::class, 'signEePresentiel'])->name('pdp.sign-ee-presentiel');
 
     // Aperçu et téléchargement PDF
     Route::get('/pdp/{pdp}/preview', [PdpController::class, 'preview'])->name('pdp.preview');
@@ -36,6 +37,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ─── Administration QSE (création / gestion des agences) ───────────────
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/agencies', [App\Http\Controllers\AdminController::class, 'agencies'])->name('agencies.index');
+        Route::get('/agencies/create', [App\Http\Controllers\AdminController::class, 'createAgency'])->name('agencies.create');
+        Route::post('/agencies', [App\Http\Controllers\AdminController::class, 'storeAgency'])->name('agencies.store');
+        Route::get('/agencies/{agency}/edit', [App\Http\Controllers\AdminController::class, 'editAgency'])->name('agencies.edit');
+        Route::patch('/agencies/{agency}', [App\Http\Controllers\AdminController::class, 'updateAgency'])->name('agencies.update');
+        Route::post('/agencies/{agency}/reset-password', [App\Http\Controllers\AdminController::class, 'resetPassword'])->name('agencies.reset-password');
+        Route::delete('/agencies/{agency}', [App\Http\Controllers\AdminController::class, 'destroyAgency'])->name('agencies.destroy');
+    });
 });
 
 // ─── Espace Prestataire (accès public via lien magique) ─────────────────
