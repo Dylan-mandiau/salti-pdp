@@ -51,7 +51,7 @@
 
     /* Titres jaunes */
     .title-yellow {
-        background: #FFDD00;
+        background: #FFC000;
         font-weight: bold;
         text-align: center;
         font-size: 10pt;
@@ -66,7 +66,7 @@
 
     /* Tableau EU/EE page 1 */
     .eu-ee th {
-        background: #FFDD00;
+        background: #FFC000;
         text-align: center;
         font-size: 9pt;
         font-variant: small-caps;
@@ -111,7 +111,7 @@
     }
 
     /* Tableau des risques */
-    .risques th { background: #FFDD00; font-size: 8.5pt; }
+    .risques th { background: #FFC000; font-size: 8.5pt; }
     .risques td { font-size: 8pt; }
     .risques .col-applicable { width: 8%; text-align: center; font-size: 12pt; font-weight: bold; }
     .risques .col-resp { width: 6%; text-align: center; font-size: 11pt; font-weight: bold; }
@@ -175,7 +175,7 @@
             </td>
         </tr>
         <tr>
-            <td colspan="2" style="text-align:center; padding:3px; background:#FFDD00; font-weight:bold; font-variant:small-caps;">
+            <td colspan="2" style="text-align:center; padding:3px; background:#FFC000; font-weight:bold; font-variant:small-caps;">
                 Interlocuteurs sécurité :
             </td>
         </tr>
@@ -552,13 +552,13 @@
     {{-- Autres risques --}}
     <table class="bordered" style="margin-top:10px">
         <tr><th colspan="5" class="title-yellow">Autres risques non préalablement cités</th></tr>
-        <tr style="background:#FFDD00">
-            <th rowspan="2" style="width:25%; background:#FFDD00">Situation de travail</th>
-            <th rowspan="2" style="width:25%; background:#FFDD00">Risques de l'interférence</th>
-            <th rowspan="2" style="width:30%; background:#FFDD00">Mesures de prévention</th>
-            <th colspan="2" style="background:#FFDD00; text-decoration:underline">À la charge de</th>
+        <tr style="background:#FFC000">
+            <th rowspan="2" style="width:25%; background:#FFC000">Situation de travail</th>
+            <th rowspan="2" style="width:25%; background:#FFC000">Risques de l'interférence</th>
+            <th rowspan="2" style="width:30%; background:#FFC000">Mesures de prévention</th>
+            <th colspan="2" style="background:#FFC000; text-decoration:underline">À la charge de</th>
         </tr>
-        <tr style="background:#FFDD00">
+        <tr style="background:#FFC000">
             <th class="col-resp">EU</th>
             <th class="col-resp">EE</th>
         </tr>
@@ -577,9 +577,9 @@
     <table class="bordered" style="margin-top:10px">
         <tr><th colspan="3" class="title-yellow">Autorisations de conduite et habilitations que doivent posséder les salariés de l'entreprise extérieure</th></tr>
         <tr>
-            <th style="width:40%; background:#FFDD00">Salarié</th>
-            <th style="width:35%; background:#FFDD00">Habilitation / CACES*</th>
-            <th style="width:25%; background:#FFDD00">Date de validité</th>
+            <th style="width:40%; background:#FFC000">Salarié</th>
+            <th style="width:35%; background:#FFC000">Habilitation / CACES*</th>
+            <th style="width:25%; background:#FFC000">Date de validité</th>
         </tr>
         @php $habs = $intervenants->whereNotNull('habilitation')->take(3); $i = 0; @endphp
         @foreach($habs as $iv)
@@ -617,10 +617,10 @@
 
     <table class="bordered" style="margin-top:8px">
         <tr><th colspan="3" class="title-yellow">Attestation de prise de connaissance du Plan de Prévention</th></tr>
-        <tr style="background:#FFDD00">
-            <th style="width:50%; background:#FFDD00">Salarié intervenant (Nom, Prénom)</th>
-            <th style="width:15%; background:#FFDD00">Date</th>
-            <th style="width:35%; background:#FFDD00">Signature</th>
+        <tr style="background:#FFC000">
+            <th style="width:50%; background:#FFC000">Salarié intervenant (Nom, Prénom)</th>
+            <th style="width:15%; background:#FFC000">Date</th>
+            <th style="width:35%; background:#FFC000">Signature</th>
         </tr>
         @php $intvSlice = $intervenants->take(4); $iCount = 0; @endphp
         @foreach($intvSlice as $iv)
