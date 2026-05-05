@@ -33,13 +33,36 @@
     {{-- Récap partie SALTI (lecture seule) --}}
     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
         <h2 class="font-semibold mb-3 text-sm text-gray-700">📋 Informations renseignées par SALTI</h2>
+        @php
+            $dureeStr = '';
+            if (!empty($data['operation']['duree_value']) && !empty($data['operation']['duree_unit'])) {
+                $dureeStr = trim($data['operation']['duree_value'].' '.$data['operation']['duree_unit']);
+            } else {
+                $dureeStr = $data['operation']['duree'] ?? '—';
+            }
+            $plagesStr = '';
+            if (!empty($data['operation']['plage_debut']) && !empty($data['operation']['plage_fin'])) {
+                $plagesStr = $data['operation']['plage_debut'].' - '.$data['operation']['plage_fin'];
+            } else {
+                $plagesStr = $data['operation']['plages_horaires'] ?? '—';
+            }
+            $nbSalaries = (int)($data['operation']['nb_salaries'] ?? 0);
+        @endphp
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span class="text-gray-500">Agence :</span> {{ $data['eu']['agence'] ?? '—' }}</div>
             <div><span class="text-gray-500">Donneur d'ordre :</span> {{ $pdp->donneur_ordre_nom }}</div>
             <div><span class="text-gray-500">Opération :</span> {{ $data['operation']['designation'] ?? '—' }}</div>
             <div><span class="text-gray-500">Lieu :</span> {{ $data['operation']['lieu'] ?? '—' }}</div>
             <div><span class="text-gray-500">Date début :</span> {{ $data['operation']['date_debut'] ?? '—' }}</div>
-            <div><span class="text-gray-500">Durée :</span> {{ $data['operation']['duree'] ?? '—' }}</div>
+            <div><span class="text-gray-500">Durée :</span> {{ $dureeStr }}</div>
+            <div><span class="text-gray-500">Plages horaires :</span> {{ $plagesStr }}</div>
+            <div>
+                <span class="text-gray-500">Nombre de salariés affectés :</span>
+                <strong>{{ $nbSalaries > 0 ? $nbSalaries : '—' }}</strong>
+                @if($nbSalaries > 0)
+                    <span class="text-xs text-blue-700 ml-1">→ remplissez les habilitations pour ces {{ $nbSalaries }} salarié{{ $nbSalaries > 1 ? 's' : '' }}</span>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -108,7 +131,18 @@
         {{-- Habilitations / CACES de vos salariés --}}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 class="font-semibold mb-2">Autorisations de conduite & habilitations de vos salariés</h2>
-            <p class="text-sm text-gray-600 mb-3">Renseignez ci-dessous les salariés qui interviendront sur le site SALTI avec leurs habilitations valides.</p>
+            @php
+                $habs = $pdp->intervenants()->orderBy('id')->get();
+                // Nombre de lignes = max(nb_salaries fourni par SALTI, lignes déjà saisies)
+                // Au moins 1 ligne pour démarrer
+                $habCount = max(1, $nbSalaries, $habs->count());
+            @endphp
+            <p class="text-sm text-gray-600 mb-3">
+                Renseignez ci-dessous les salariés qui interviendront sur le site SALTI avec leurs habilitations valides.
+                @if($nbSalaries > 0)
+                    <br><span class="text-blue-700">SALTI a indiqué <strong>{{ $nbSalaries }} salarié{{ $nbSalaries > 1 ? 's' : '' }} affecté{{ $nbSalaries > 1 ? 's' : '' }}</strong> — vous trouverez {{ $nbSalaries }} ligne{{ $nbSalaries > 1 ? 's' : '' }} prête{{ $nbSalaries > 1 ? 's' : '' }} à remplir.</span>
+                @endif
+            </p>
             <div class="overflow-x-auto">
                 <table class="w-full border border-gray-200 text-sm">
                     <thead class="bg-gray-50">
@@ -116,25 +150,28 @@
                             <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Salarié (Nom Prénom)</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Habilitation / CACES</th>
                             <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date validité</th>
+                            <th class="px-3 py-2 w-10"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200" id="hab-table">
-                        @php
-                            // 3 lignes minimum, plus si déjà saisies
-                            $habs = $pdp->intervenants()->whereNotNull('habilitation')->orderBy('id')->get();
-                            $habCount = max(3, $habs->count() + 1);
-                        @endphp
                         @for($i = 0; $i < $habCount; $i++)
                             @php $h = $habs->get($i); @endphp
-                            <tr>
+                            <tr data-hab-line>
                                 <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="nom_prenom" value="{{ $h->nom_prenom ?? '' }}" placeholder="Nom Prénom" class="w-full border-0 text-sm focus:ring-0"></td>
                                 <td class="px-2 py-2"><input type="text" data-hab-row="{{ $i }}" data-hab-field="habilitation" value="{{ $h->habilitation ?? '' }}" placeholder="ex. CACES R489 cat 3" class="w-full border-0 text-sm focus:ring-0"></td>
                                 <td class="px-2 py-2"><input type="date" data-hab-row="{{ $i }}" data-hab-field="habilitation_validity" value="{{ $h?->habilitation_validity?->format('Y-m-d') ?? '' }}" class="w-full border-0 text-sm focus:ring-0"></td>
+                                <td class="px-2 py-2 text-center">
+                                    <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-lg" title="Supprimer cette ligne">×</button>
+                                </td>
                             </tr>
                         @endfor
                     </tbody>
                 </table>
             </div>
+            <button type="button" onclick="addHabLine()"
+                    class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
+                <span class="text-lg">+</span> Ajouter un salarié
+            </button>
             <p class="text-xs text-gray-500 mt-2">⚠ Les habilitations doivent être valides à la date de début de l'intervention.</p>
         </div>
 
@@ -262,12 +299,48 @@
 
     // Auto-save : déclenche sur tout input/change des éléments balisés
     let saveTimer;
-    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-hab-row], [data-ar-row]').forEach(el => {
+    function attachAutoSave(el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
             clearTimeout(saveTimer);
             saveTimer = setTimeout(autoSave, 800);
         }));
-    });
+    }
+    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-hab-row], [data-ar-row]').forEach(attachAutoSave);
+
+    // Ajout / suppression de lignes Habilitations dynamiquement
+    window.addHabLine = function() {
+        const tbody = document.getElementById('hab-table');
+        const idx = tbody.querySelectorAll('[data-hab-line]').length;
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-hab-line', '');
+        tr.innerHTML = `
+            <td class="px-2 py-2"><input type="text" data-hab-row="${idx}" data-hab-field="nom_prenom" placeholder="Nom Prénom" class="w-full border-0 text-sm focus:ring-0"></td>
+            <td class="px-2 py-2"><input type="text" data-hab-row="${idx}" data-hab-field="habilitation" placeholder="ex. CACES R489 cat 3" class="w-full border-0 text-sm focus:ring-0"></td>
+            <td class="px-2 py-2"><input type="date" data-hab-row="${idx}" data-hab-field="habilitation_validity" class="w-full border-0 text-sm focus:ring-0"></td>
+            <td class="px-2 py-2 text-center">
+                <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-lg" title="Supprimer cette ligne">×</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        tr.querySelectorAll('input').forEach(attachAutoSave);
+        tr.querySelector('input').focus();
+    };
+
+    window.removeHabLine = function(btn) {
+        const tbody = document.getElementById('hab-table');
+        if (tbody.querySelectorAll('[data-hab-line]').length <= 1) {
+            // Garde au moins une ligne — vide les champs au lieu de supprimer
+            btn.closest('tr').querySelectorAll('input').forEach(i => i.value = '');
+        } else {
+            btn.closest('tr').remove();
+        }
+        // Re-numérote les data-hab-row pour rester cohérent
+        tbody.querySelectorAll('[data-hab-line]').forEach((tr, i) => {
+            tr.querySelectorAll('[data-hab-row]').forEach(el => el.setAttribute('data-hab-row', i));
+        });
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(autoSave, 200);
+    };
 
     function setDeep(obj, path, value) {
         const parts = path.split('.');
