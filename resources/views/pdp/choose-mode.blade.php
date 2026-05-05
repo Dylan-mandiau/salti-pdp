@@ -53,7 +53,7 @@
         </div>
 
         <div class="flex justify-between">
-            <a href="{{ route('pdp.dashboard') }}" class="text-gray-600 hover:text-gray-900 px-4 py-2">
+            <a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-gray-900 px-4 py-2">
                 ← Annuler
             </a>
             <button type="submit"

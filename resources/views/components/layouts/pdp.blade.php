@@ -43,11 +43,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14">
                 <div class="flex items-center space-x-6">
-                    <a href="{{ route('pdp.dashboard') }}" class="flex items-center">
+                    <a href="{{ route('dashboard') }}" class="flex items-center">
                         <span class="bg-salti-yellow text-black font-bold px-3 py-1 rounded">SALTI</span>
                         <span class="ml-2 text-sm font-medium">Plan de Prévention</span>
                     </a>
-                    <a href="{{ route('pdp.dashboard') }}" class="text-sm hover:text-salti-yellow">Tableau de bord</a>
+                    <a href="{{ route('dashboard') }}" class="text-sm hover:text-salti-yellow">Tableau de bord</a>
                     <a href="{{ route('pdp.choose-mode') }}" class="text-sm hover:text-salti-yellow">+ Nouveau PDP</a>
                 </div>
                 <div class="flex items-center space-x-4">

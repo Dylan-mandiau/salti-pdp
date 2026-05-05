@@ -9,7 +9,7 @@
     {{-- En-tête --}}
     <div class="flex justify-between items-start mb-4">
         <div>
-            <a href="{{ route('pdp.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-900">← Retour au tableau de bord</a>
+            <a href="{{ route('dashboard') }}" class="text-sm text-gray-500 hover:text-gray-900">← Retour au tableau de bord</a>
             <h1 class="text-2xl font-bold mt-1">Plan de Prévention</h1>
             <p class="text-sm text-gray-500">
                 {{ $data['ee']['raison_sociale'] ?? 'Prestataire à définir' }} ·
