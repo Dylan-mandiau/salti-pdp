@@ -14,9 +14,8 @@ Route::get('/', function () {
 
 // ─── Espace SALTI (auth requise) ─────────────────────────────────────────
 Route::middleware('auth')->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [PdpController::class, 'dashboard'])->name('pdp.dashboard');
-    Route::get('/dashboard', [PdpController::class, 'dashboard'])->name('dashboard'); // alias compat
+    // Dashboard (le name "dashboard" sert pour la redirection Breeze post-login)
+    Route::get('/dashboard', [PdpController::class, 'dashboard'])->name('dashboard');
 
     // Création d'un PDP
     Route::get('/pdp/new', [PdpController::class, 'chooseMode'])->name('pdp.choose-mode');
