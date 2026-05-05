@@ -10,6 +10,7 @@
         "laravel/breeze": "^2.4",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
+        "mpdf/mpdf": "^8.3",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
         "setasign/fpdi-tcpdf": "*",

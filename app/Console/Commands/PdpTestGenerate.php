@@ -6,7 +6,7 @@ use App\Models\Pdp;
 use App\Models\PdpIntervenant;
 use App\Models\Prestataire;
 use App\Models\User;
-use App\Services\PdpPdfGenerator;
+use App\Services\PdpHtmlPdfGenerator;
 use Illuminate\Console\Command;
 
 /**
@@ -20,7 +20,7 @@ class PdpTestGenerate extends Command
     protected $signature = 'pdp:test-generate';
     protected $description = 'Génère un PDP de test entièrement rempli pour calibration visuelle';
 
-    public function handle(PdpPdfGenerator $generator): int
+    public function handle(PdpHtmlPdfGenerator $generator): int
     {
         $agency = User::where('email', 'bordeaux@salti.fr')->firstOrFail();
 

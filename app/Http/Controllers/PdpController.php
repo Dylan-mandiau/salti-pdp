@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pdp;
 use App\Models\Prestataire;
 use App\Models\User;
+use App\Services\PdpHtmlPdfGenerator;
 use App\Services\PdpPdfGenerator;
 use App\Services\PdpValidator;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class PdpController extends Controller
 {
     public function __construct(
-        private PdpPdfGenerator $generator,
+        private PdpHtmlPdfGenerator $generator,   // ← nouveau générateur HTML/CSS (rendu fidèle, zéro calibration)
+        private PdpPdfGenerator $legacyGenerator, // ← ancien (overlay sur PDF original) gardé pour /calibration.pdf
         private PdpValidator $validator,
     ) {}
 
@@ -378,7 +380,7 @@ class PdpController extends Controller
             abort(403, 'Réservé au compte QSE central.');
         }
 
-        $relativePath = $this->generator->generateCalibrationPdf();
+        $relativePath = $this->legacyGenerator->generateCalibrationPdf();
         $absolutePath = storage_path('app/'.$relativePath);
 
         return response()->file($absolutePath, [
