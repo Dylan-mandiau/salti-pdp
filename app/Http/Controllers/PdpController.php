@@ -96,9 +96,18 @@ class PdpController extends Controller
             $agencyId = $agency->id;
             $defaultOtp = $agency->require_otp_by_default;
         } else {
+            $agency = $user;
             $agencyId = $user->id;
             $defaultOtp = $user->require_otp_by_default;
         }
+
+        // Pré-remplir les infos EU dans data avec les coordonnées de l'agence
+        // (dispo dès l'étape 1 du wizard sans saisie manuelle)
+        $initialData = Pdp::emptyData();
+        $initialData['eu']['agence'] = $agency->city ?? $agency->name;
+        $initialData['eu']['donneur_ordre'] = $validated['donneur_ordre_nom'];
+        $initialData['eu']['address'] = $agency->address;
+        $initialData['eu']['phone'] = $agency->phone;
 
         $pdp = Pdp::create([
             'agency_id' => $agencyId,
@@ -106,7 +115,7 @@ class PdpController extends Controller
             'status' => Pdp::STATUS_DRAFT,
             'donneur_ordre_nom' => $validated['donneur_ordre_nom'],
             'require_otp' => $defaultOtp,
-            'data' => Pdp::emptyData(),
+            'data' => $initialData,
         ]);
 
         $this->logAudit($pdp, 'created', $request);

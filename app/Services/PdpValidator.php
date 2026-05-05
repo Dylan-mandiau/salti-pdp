@@ -204,27 +204,63 @@ class PdpValidator
         $epi = $data['epi'] ?? [];
         $risques = $data['risques'] ?? [];
 
-        // Travail en hauteur → harnais obligatoire
+        // ━━ ERREURS BLOQUANTES — sécurité obligatoire selon le Code du travail ━━
+
+        // Travail en hauteur → Harnais OBLIGATOIRE (Art. R4323-58 du Code du travail)
         if (! empty($risques['travail_hauteur']['applicable']) && empty($epi['harnais'])) {
-            $this->warning('epi.harnais', 'Travail en hauteur déclaré : EPI Harnais devrait être coché.', 3);
+            $this->error('epi.harnais', '🪢 Travail en hauteur déclaré → EPI Harnais OBLIGATOIRE (Art. R4323-58 du Code du travail).', 3);
         }
 
-        // Soudure / découpe → lunettes + masque + gants obligatoires
+        // Soudure / découpe → Lunettes + Gants + Masque OBLIGATOIRES
         if (! empty($risques['soudure_decoupe']['applicable'])) {
             if (empty($epi['lunettes'])) {
-                $this->warning('epi.lunettes', 'Soudure/découpe déclarée : EPI Lunettes recommandé.', 3);
+                $this->error('epi.lunettes', '🥽 Soudure/découpe déclarée → EPI Lunettes OBLIGATOIRES (projection particules).', 3);
             }
             if (empty($epi['gants'])) {
-                $this->warning('epi.gants', 'Soudure/découpe déclarée : EPI Gants recommandé.', 3);
+                $this->error('epi.gants', '🧤 Soudure/découpe déclarée → EPI Gants OBLIGATOIRES (brûlures, coupures).', 3);
+            }
+            if (empty($epi['masque'])) {
+                $this->error('epi.masque', '😷 Soudure/découpe déclarée → EPI Masque OBLIGATOIRE (fumées, vapeurs).', 3);
             }
         }
 
-        // Chantier extérieur (par défaut on suppose) → chaussures + gilet HV obligatoires
+        // Levage / manutention → Casque OBLIGATOIRE (chute d\'objets)
+        if (! empty($risques['levage_manutention']['applicable']) && empty($epi['casque'])) {
+            $this->error('epi.casque', '⛑ Levage/manutention déclaré → EPI Casque OBLIGATOIRE (risque de chute d\'objets).', 3);
+        }
+
+        // Produits chimiques → Gants + Lunettes OBLIGATOIRES
+        if (! empty($risques['produits_chimiques']['applicable'])) {
+            if (empty($epi['gants'])) {
+                $this->error('epi.gants', '🧤 Produits chimiques déclarés → EPI Gants OBLIGATOIRES.', 3);
+            }
+            if (empty($epi['lunettes'])) {
+                $this->error('epi.lunettes', '🥽 Produits chimiques déclarés → EPI Lunettes OBLIGATOIRES.', 3);
+            }
+        }
+
+        // Intervention électrique → Gants OBLIGATOIRES (Norme NF C 18-510)
+        if (! empty($risques['electrique']['applicable']) && empty($epi['gants'])) {
+            $this->error('epi.gants', '🧤 Intervention électrique déclarée → EPI Gants isolants OBLIGATOIRES (NF C 18-510).', 3);
+        }
+
+        // Flexibles d\'engins → Lunettes + Gants OBLIGATOIRES (projections d\'huile)
+        if (! empty($risques['flexibles_engins']['applicable'])) {
+            if (empty($epi['lunettes'])) {
+                $this->error('epi.lunettes', '🥽 Intervention flexibles → EPI Lunettes OBLIGATOIRES (projections d\'huile).', 3);
+            }
+            if (empty($epi['gants'])) {
+                $this->error('epi.gants', '🧤 Intervention flexibles → EPI Gants OBLIGATOIRES.', 3);
+            }
+        }
+
+        // ━━ EPI BASE SITE SALTI — toujours obligatoires (politique interne) ━━
+
         if (empty($epi['chaussures'])) {
-            $this->warning('epi.chaussures', 'EPI Chaussures de sécurité fortement recommandées.', 3);
+            $this->error('epi.chaussures', '👟 EPI Chaussures de sécurité OBLIGATOIRES sur tout site SALTI.', 3);
         }
         if (empty($epi['gilet_hv'])) {
-            $this->warning('epi.gilet_hv', 'EPI Gilet haute visibilité fortement recommandé sur site SALTI.', 3);
+            $this->error('epi.gilet_hv', '🦺 EPI Gilet haute visibilité OBLIGATOIRE sur tout site SALTI.', 3);
         }
     }
 
@@ -233,35 +269,57 @@ class PdpValidator
         $risques = $data['risques'] ?? [];
         $intervenants = $pdp->intervenants ?? collect();
 
-        // Si risque électrique → au moins un intervenant doit avoir une habilitation B0/B1V/H0V/H2B2/HCBC/BR
+        // ━━ HABILITATIONS OBLIGATOIRES (erreurs bloquantes) ━━
+
+        // Risque électrique → habilitation B0/B1V/H0V/H2B2/HCBC/BR OBLIGATOIRE
+        // (Art. R4544-9 Code du travail + Norme NF C 18-510)
         if (! empty($risques['electrique']['applicable'])) {
             $hasHabilitationElec = $intervenants->contains(function ($iv) {
                 return preg_match('/(B0|B1V|B2|BR|BC|H0V|H1V|H2B2|HCBC)/i', (string)($iv->habilitation ?? ''));
             });
             if (! $hasHabilitationElec) {
-                $this->error(null, 'Risque électrique déclaré mais aucun salarié EE n\'a d\'habilitation électrique enregistrée.', 5);
+                $this->error(null, '⚡ Risque électrique déclaré → Habilitation électrique OBLIGATOIRE (B0/B1V/B2/BR/H0V/H2B2/HCBC) — aucun salarié EE habilité enregistré (Art. R4544-9 Code du travail).', 5);
             }
         }
 
-        // Si levage / nacelle → CACES requis
-        if (! empty($risques['levage_manutention']['applicable']) || ! empty($risques['travail_hauteur']['applicable'])) {
+        // Levage / manutention → CACES R486 ou R489 OBLIGATOIRE (Art. R4323-55)
+        if (! empty($risques['levage_manutention']['applicable'])) {
             $hasCaces = $intervenants->contains(function ($iv) {
-                return stripos((string)($iv->habilitation ?? ''), 'CACES') !== false
-                    || stripos((string)($iv->habilitation ?? ''), 'R489') !== false
-                    || stripos((string)($iv->habilitation ?? ''), 'R486') !== false;
+                return preg_match('/(CACES|R489|R486|R485|R482)/i', (string)($iv->habilitation ?? ''));
             });
             if (! $hasCaces) {
-                $this->warning(null, 'Levage ou travail en hauteur déclaré mais aucun CACES enregistré chez l\'EE.', 5);
+                $this->error(null, '🏗 Levage/manutention déclaré → CACES OBLIGATOIRE (R486 nacelle / R489 chariot) — aucun CACES enregistré chez l\'EE (Art. R4323-55).', 5);
             }
         }
 
-        // Vérifier les dates de validité des habilitations vs durée du PDP
+        // Travail en hauteur (nacelle) → CACES R486 OBLIGATOIRE
+        if (! empty($risques['travail_hauteur']['applicable'])) {
+            $hasCacesNacelle = $intervenants->contains(function ($iv) {
+                return preg_match('/(R486|nacelle|PEMP|CACES)/i', (string)($iv->habilitation ?? ''));
+            });
+            if (! $hasCacesNacelle) {
+                $this->error(null, '🪜 Travail en hauteur (nacelle) déclaré → CACES R486 (PEMP) OBLIGATOIRE — aucun CACES nacelle enregistré chez l\'EE.', 5);
+            }
+        }
+
+        // Soudure → qualification soudeur recommandée (warning seulement)
+        if (! empty($risques['soudure_decoupe']['applicable'])) {
+            $hasSoudureCert = $intervenants->contains(function ($iv) {
+                return preg_match('/(soud|EN ?287|ISO ?9606|TIG|MIG|MAG)/i', (string)($iv->habilitation ?? ''));
+            });
+            if (! $hasSoudureCert) {
+                $this->warning(null, '🔥 Soudure/découpe déclarée → Recommandé : qualification soudeur (EN 287 / ISO 9606) chez l\'EE.', 5);
+            }
+        }
+
+        // ━━ DATES DE VALIDITÉ — bloquant si expirée avant l\'intervention ━━
+
         if (! empty($data['operation']['date_debut'])) {
             try {
                 $debut = Carbon::parse($data['operation']['date_debut']);
                 foreach ($intervenants as $iv) {
                     if ($iv->habilitation_validity && $iv->habilitation_validity->lt($debut)) {
-                        $this->error(null, "Habilitation expirée pour {$iv->nom_prenom} ({$iv->habilitation}) — date de validité {$iv->habilitation_validity->format('d/m/Y')}.", 5);
+                        $this->error(null, "🚫 Habilitation EXPIRÉE pour {$iv->nom_prenom} ({$iv->habilitation}) — validité jusqu'au {$iv->habilitation_validity->format('d/m/Y')}, intervention prévue le {$debut->format('d/m/Y')}.", 5);
                     }
                 }
             } catch (\Exception $e) {
