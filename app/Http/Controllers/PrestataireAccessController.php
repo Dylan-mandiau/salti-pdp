@@ -35,8 +35,11 @@ class PrestataireAccessController extends Controller
     {
         $pdp = $this->resolveToken($token);
 
-        if (! in_array($pdp->status, [Pdp::STATUS_AWAITING_PRESTATAIRE, Pdp::STATUS_CORRECTIONS_REQUESTED])) {
-            return response()->json(['error' => 'PDP non éditable dans cet état'], 423);
+        // Le prestataire peut modifier tant qu'il n'a pas signé personnellement
+        // (même après avoir 'soumis' à SALTI : permet de corriger des erreurs
+        // humaines genre date d'habilitation mal saisie).
+        if ($pdp->signed_by_prestataire_at || in_array($pdp->status, [Pdp::STATUS_SIGNED, Pdp::STATUS_ARCHIVED, Pdp::STATUS_CANCELLED])) {
+            return response()->json(['error' => 'PDP verrouillé'], 423);
         }
 
         $payload = $request->input('data', []);
@@ -83,8 +86,9 @@ class PrestataireAccessController extends Controller
     {
         $pdp = $this->resolveToken($token);
 
-        if (! in_array($pdp->status, [\App\Models\Pdp::STATUS_AWAITING_PRESTATAIRE, \App\Models\Pdp::STATUS_CORRECTIONS_REQUESTED])) {
-            return response()->json(['error' => 'PDP non éditable dans cet état'], 423);
+        // Modifiable tant que le prestataire n'a pas signé
+        if ($pdp->signed_by_prestataire_at || in_array($pdp->status, [Pdp::STATUS_SIGNED, Pdp::STATUS_ARCHIVED, Pdp::STATUS_CANCELLED])) {
+            return response()->json(['error' => 'PDP verrouillé'], 423);
         }
 
         $request->validate([

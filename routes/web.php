@@ -34,6 +34,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/pdp/{pdp}/reopen', [PdpController::class, 'reopen'])->name('pdp.reopen');
     Route::delete('/pdp/{pdp}', [PdpController::class, 'destroy'])->name('pdp.destroy');
 
+    // CRUD intervenants (SALTI peut corriger / supprimer en cas d'erreur prestataire)
+    Route::post('/pdp/{pdp}/intervenants', [PdpController::class, 'upsertIntervenant'])->name('pdp.intervenants.upsert');
+    Route::delete('/pdp/{pdp}/intervenants/{intervenant}', [PdpController::class, 'deleteIntervenant'])->name('pdp.intervenants.delete');
+
     // Calibration des coordonnées PDF (QSE uniquement)
     Route::get('/calibration.pdf', [PdpController::class, 'calibrationPdf'])->name('pdp.calibration');
 

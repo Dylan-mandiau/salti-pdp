@@ -41,6 +41,32 @@
         /* Force la largeur 100% pour intl-tel-input wrapper */
         .iti { width: 100%; }
         .iti__country-list { z-index: 50; }
+
+        /* Input date — icône calendrier plus grosse et clic ouvre direct le picker */
+        input[type="date"] {
+            position: relative;
+            cursor: pointer;
+            padding-right: 2.5rem;          /* place pour la grosse icône */
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 22px 22px;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            inset: 0;                       /* couvre tout l'input */
+            width: auto;
+            height: auto;
+            opacity: 0;                     /* on n'utilise plus l'icône native, mais le clic ouvre quand même le picker */
+            cursor: pointer;
+        }
+        input[type="time"] {
+            cursor: pointer;
+        }
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-white text-black">

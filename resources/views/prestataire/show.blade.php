@@ -1,7 +1,9 @@
 <x-layouts.pdp title="Plan de prévention - Prestataire">
 @php
     $data = $pdp->data;
-    $isLocked = in_array($pdp->status, ['signed', 'archived', 'cancelled']);
+    // Le prestataire peut éditer tant qu'il n'a pas signé personnellement
+    // (même après 'soumission' — pour corriger des erreurs)
+    $isLocked = $pdp->signed_by_prestataire_at || in_array($pdp->status, ['signed', 'archived', 'cancelled']);
 @endphp
 
 <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8" x-data="{ lastSaved: '' }">
@@ -22,11 +24,15 @@
 
     @if($pdp->status === 'awaiting_validation')
         <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded mb-6">
-            ✓ Vous avez soumis votre partie. SALTI doit maintenant valider avant la phase de signature.
+            ✓ Vous avez soumis votre partie à SALTI. Vous pouvez encore modifier vos saisies en cas d'erreur — n'oubliez pas alors de cliquer à nouveau sur <strong>"Soumettre à SALTI"</strong>.
         </div>
     @elseif($pdp->status === 'corrections_requested')
         <div class="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded mb-6">
             ⚠ SALTI a demandé des corrections. Merci de modifier votre saisie puis de re-soumettre.
+        </div>
+    @elseif($pdp->status === 'awaiting_signatures' && ! $pdp->signed_by_prestataire_at)
+        <div class="bg-purple-50 border border-purple-200 text-purple-800 p-4 rounded mb-6">
+            ✓ SALTI a validé votre partie — vous pouvez maintenant <strong>signer</strong> le PDP en bas de page. En cas d'erreur, vous pouvez encore modifier avant signature.
         </div>
     @endif
 
@@ -334,14 +340,18 @@
         </div>
 
         @if(! $isLocked && ! $pdp->signed_by_prestataire_at)
-            @if($pdp->status === 'awaiting_prestataire' || $pdp->status === 'corrections_requested')
+            @if(in_array($pdp->status, ['awaiting_prestataire', 'corrections_requested', 'awaiting_validation']))
                 <form method="POST" action="{{ route('prestataire.submit', $token) }}"
                       onsubmit="return confirm('Soumettre votre partie à SALTI pour validation ?');"
                       class="flex justify-end">
                     @csrf
                     <button type="submit"
                             class="bg-salti-yellow hover:bg-salti-yellow-dark text-black font-semibold px-5 py-2.5 rounded">
-                        Soumettre à SALTI →
+                        @if($pdp->status === 'awaiting_validation')
+                            🔄 Re-soumettre à SALTI
+                        @else
+                            Soumettre à SALTI →
+                        @endif
                     </button>
                 </form>
             @elseif($pdp->status === 'awaiting_signatures')

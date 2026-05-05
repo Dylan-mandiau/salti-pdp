@@ -368,29 +368,35 @@
             </div>
 
             <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b mt-8">Autorisations de conduite & Habilitations EE</h3>
-            <p class="text-xs text-gray-500 mb-4">Liste des salariés du prestataire avec leurs habilitations. À gérer dans l'étape <a href="?step=6" class="underline text-salti-yellow-dark">Signatures</a> en ajoutant des intervenants.</p>
-            @if($habilitations->count() > 0)
-                <table class="w-full border border-gray-200 text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2 text-left">Salarié</th>
-                            <th class="px-3 py-2 text-left">Habilitation / CACES</th>
-                            <th class="px-3 py-2 text-left">Date validité</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y">
-                        @foreach($habilitations as $iv)
-                            <tr>
-                                <td class="px-3 py-2">{{ $iv->nom_prenom }}</td>
-                                <td class="px-3 py-2">{{ $iv->habilitation }}</td>
-                                <td class="px-3 py-2">{{ $iv->habilitation_validity?->format('d/m/Y') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p class="text-sm text-gray-500 italic">Aucune habilitation enregistrée pour l'instant.</p>
-            @endif
+            <p class="text-xs text-gray-500 mb-4">
+                Liste des salariés du prestataire avec leurs habilitations. <strong>Vous pouvez corriger les erreurs ou supprimer un salarié</strong>
+                (utile si une date d'habilitation est mal saisie ou expirée).
+            </p>
+            @php $allInterv = $pdp->intervenants()->orderBy('id')->get(); @endphp
+            <div id="salti-intervenants" class="space-y-2">
+                @forelse($allInterv as $iv)
+                    <div class="border border-gray-200 rounded-lg p-3" data-iv-id="{{ $iv->id }}">
+                        <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_60px] gap-2 md:items-center">
+                            <input type="text" data-iv-field="nom_prenom" data-iv-id="{{ $iv->id }}" value="{{ $iv->nom_prenom }}" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="text" data-iv-field="habilitation" data-iv-id="{{ $iv->id }}" value="{{ $iv->habilitation }}" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="date" data-iv-field="habilitation_validity" data-iv-id="{{ $iv->id }}" value="{{ $iv->habilitation_validity?->format('Y-m-d') }}" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <button type="button" onclick="deleteIntervenant({{ $iv->id }})"
+                                    class="text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-1.5">
+                                🗑 Suppr
+                            </button>
+                        </div>
+                        @if($iv->habilitation_validity && $iv->habilitation_validity->isPast())
+                            <div class="text-xs text-red-700 mt-1">⚠ Habilitation expirée le {{ $iv->habilitation_validity->format('d/m/Y') }}</div>
+                        @endif
+                    </div>
+                @empty
+                    <p class="text-sm text-gray-500 italic">Aucune habilitation enregistrée pour l'instant.</p>
+                @endforelse
+            </div>
+            <button type="button" onclick="addSaltiIntervenant()"
+                    class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
+                <span class="text-lg">+</span> Ajouter un salarié
+            </button>
         @endif
 
         {{-- ════════════════════════════════════════════════════════════════
@@ -725,6 +731,104 @@
             }
         }
     }
+
+    // ─── CRUD intervenants côté SALTI (étape 5) ─────────────────────
+    const PDP_ID = {{ $pdp->id }};
+    const CSRF = document.querySelector('meta[name=csrf-token]').content;
+
+    // Auto-save sur input/change : envoi vers /pdp/{pdp}/intervenants (upsert)
+    let ivSaveTimer = null;
+    document.querySelectorAll('[data-iv-id][data-iv-field]').forEach(el => {
+        el.addEventListener('change', () => {
+            clearTimeout(ivSaveTimer);
+            ivSaveTimer = setTimeout(() => saveIntervenantFromInput(el), 500);
+        });
+    });
+
+    async function saveIntervenantFromInput(el) {
+        const id = el.dataset.ivId;
+        const card = el.closest('[data-iv-id]');
+        const payload = { id: id ? parseInt(id) : null };
+        card.querySelectorAll('[data-iv-field]').forEach(input => {
+            payload[input.dataset.ivField] = input.value;
+        });
+        if (! payload.nom_prenom) return; // skip si pas de nom
+
+        try {
+            const r = await fetch(`/pdp/${PDP_ID}/intervenants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const d = await r.json();
+            if (d.id && ! id) {
+                card.setAttribute('data-iv-id', d.id);
+                card.querySelectorAll('[data-iv-field]').forEach(input => input.setAttribute('data-iv-id', d.id));
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    window.deleteIntervenant = async function(id) {
+        if (! confirm('Supprimer ce salarié du PDP ? Cette action est irréversible.')) return;
+        const r = await fetch(`/pdp/${PDP_ID}/intervenants/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        });
+        if (r.ok) {
+            document.querySelector(`[data-iv-id="${id}"]`)?.remove();
+            setTimeout(() => location.reload(), 300);
+        }
+    };
+
+    // Construit une nouvelle ligne intervenant via DOM API (pas innerHTML pour éviter XSS)
+    function buildIntervenantCard() {
+        const card = document.createElement('div');
+        card.className = 'border border-gray-200 rounded-lg p-3';
+        card.setAttribute('data-iv-id', '');
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_60px] gap-2 md:items-center';
+
+        const fields = [
+            { type: 'text', field: 'nom_prenom', placeholder: 'Nom Prénom' },
+            { type: 'text', field: 'habilitation', placeholder: 'ex. CACES R489 cat 3' },
+            { type: 'date', field: 'habilitation_validity', placeholder: '' },
+        ];
+        const inputs = [];
+        fields.forEach(f => {
+            const input = document.createElement('input');
+            input.type = f.type;
+            input.dataset.ivField = f.field;
+            input.dataset.ivId = '';
+            if (f.placeholder) input.placeholder = f.placeholder;
+            input.className = 'border border-gray-200 rounded px-2 py-1.5 text-sm';
+            grid.appendChild(input);
+            inputs.push(input);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = '🗑 Suppr';
+        delBtn.className = 'text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-1.5';
+        delBtn.addEventListener('click', () => card.remove());
+        grid.appendChild(delBtn);
+
+        card.appendChild(grid);
+        inputs.forEach(input => {
+            input.addEventListener('change', () => {
+                clearTimeout(ivSaveTimer);
+                ivSaveTimer = setTimeout(() => saveIntervenantFromInput(input), 500);
+            });
+        });
+        return { card, firstInput: inputs[0] };
+    }
+
+    window.addSaltiIntervenant = function() {
+        const container = document.getElementById('salti-intervenants');
+        const { card, firstInput } = buildIntervenantCard();
+        container.appendChild(card);
+        firstInput.focus();
+    };
 
     // Signature pads
     const sigPads = {};

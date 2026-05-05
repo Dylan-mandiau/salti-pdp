@@ -398,6 +398,68 @@ class PdpController extends Controller
     }
 
     /**
+     * Met à jour OU crée un intervenant (CACES/habilitation) sur un PDP.
+     * Permet à SALTI de corriger les erreurs du prestataire (date mal saisie).
+     */
+    public function upsertIntervenant(Pdp $pdp, Request $request)
+    {
+        $this->authorizePdp($pdp);
+
+        $validated = $request->validate([
+            'id' => 'nullable|integer|exists:pdp_intervenants,id',
+            'nom_prenom' => 'required|string|max:255',
+            'habilitation' => 'nullable|string|max:255',
+            'habilitation_validity' => 'nullable|date',
+        ]);
+
+        if (! empty($validated['id'])) {
+            $iv = $pdp->intervenants()->where('id', $validated['id'])->firstOrFail();
+            $iv->update([
+                'nom_prenom' => $validated['nom_prenom'],
+                'habilitation' => $validated['habilitation'] ?? null,
+                'habilitation_validity' => $validated['habilitation_validity'] ?? null,
+            ]);
+        } else {
+            $iv = $pdp->intervenants()->create([
+                'nom_prenom' => $validated['nom_prenom'],
+                'habilitation' => $validated['habilitation'] ?? null,
+                'habilitation_validity' => $validated['habilitation_validity'] ?? null,
+            ]);
+        }
+
+        $this->logAudit($pdp, 'intervenant_updated_by_salti', $request, [
+            'id' => $iv->id,
+            'nom_prenom' => $iv->nom_prenom,
+        ]);
+
+        return response()->json([
+            'id' => $iv->id,
+            'nom_prenom' => $iv->nom_prenom,
+            'habilitation' => $iv->habilitation,
+            'habilitation_validity' => $iv->habilitation_validity?->format('Y-m-d'),
+        ]);
+    }
+
+    /**
+     * Supprime un intervenant (par exemple si sa date d'habilitation est expirée).
+     */
+    public function deleteIntervenant(Pdp $pdp, int $intervenantId, Request $request)
+    {
+        $this->authorizePdp($pdp);
+
+        $iv = $pdp->intervenants()->where('id', $intervenantId)->firstOrFail();
+        $name = $iv->nom_prenom;
+        $iv->delete();
+
+        $this->logAudit($pdp, 'intervenant_removed_by_salti', $request, [
+            'id' => $intervenantId,
+            'nom_prenom' => $name,
+        ]);
+
+        return response()->json(['ok' => true, 'message' => "$name a été retiré du PDP"]);
+    }
+
+    /**
      * Annulation d'un PDP (soft : status passe à "cancelled" mais on garde la trace).
      */
     public function cancel(Pdp $pdp, Request $request): RedirectResponse
