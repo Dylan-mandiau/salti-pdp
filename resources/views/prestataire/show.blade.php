@@ -68,9 +68,12 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                    <input type="text" data-path="ee.phone" value="{{ $data['ee']['phone'] ?? '' }}"
+                    <input type="tel" data-path="ee.phone" value="{{ $data['ee']['phone'] ?? '' }}"
                            {{ $isLocked ? 'disabled' : '' }}
-                           class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                           maxlength="20"
+                           autocomplete="tel"
+                           placeholder="06 12 34 56 78"
+                           class="pdp-tel-input w-full border border-gray-300 rounded px-3 py-2 text-sm">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Travaux sous-traités ?</label>

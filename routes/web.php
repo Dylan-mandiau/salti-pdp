@@ -29,6 +29,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/pdp/{pdp}/sign-salti', [PdpController::class, 'signSalti'])->name('pdp.sign-salti');
     Route::post('/pdp/{pdp}/sign-ee-presentiel', [PdpController::class, 'signEePresentiel'])->name('pdp.sign-ee-presentiel');
 
+    // CRUD avancé sur un PDP
+    Route::post('/pdp/{pdp}/cancel', [PdpController::class, 'cancel'])->name('pdp.cancel');
+    Route::post('/pdp/{pdp}/reopen', [PdpController::class, 'reopen'])->name('pdp.reopen');
+    Route::delete('/pdp/{pdp}', [PdpController::class, 'destroy'])->name('pdp.destroy');
+
     // Aperçu et téléchargement PDF
     Route::get('/pdp/{pdp}/preview', [PdpController::class, 'preview'])->name('pdp.preview');
     Route::get('/pdp/{pdp}/download', [PdpController::class, 'download'])->name('pdp.download');

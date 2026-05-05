@@ -6,6 +6,7 @@ use App\Models\Pdp;
 use App\Models\Prestataire;
 use App\Models\User;
 use App\Services\PdpPdfGenerator;
+use App\Services\PdpValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class PdpController extends Controller
 {
-    public function __construct(private PdpPdfGenerator $generator) {}
+    public function __construct(
+        private PdpPdfGenerator $generator,
+        private PdpValidator $validator,
+    ) {}
 
     /**
      * Tableau de bord : liste des PDP de l'agence connectée.
@@ -130,11 +134,15 @@ class PdpController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'city']);
 
+        // Validation de cohérence (alertes affichées à droite, blocage si erreurs)
+        $validation = $this->validator->check($pdp);
+
         return view('pdp.edit', [
             'pdp' => $pdp,
             'step' => $step,
             'prestataires' => $prestataires,
             'agencies' => $agencies,
+            'validation' => $validation,
         ]);
     }
 
@@ -239,10 +247,17 @@ class PdpController extends Controller
     /**
      * Validation de la partie EE par SALTI (passage à "à signer").
      * Reste sur l'étape signatures (step=6) après validation.
+     * BLOQUE si des erreurs critiques sont détectées par le PdpValidator.
      */
     public function validateByCAlti(Pdp $pdp, Request $request): RedirectResponse
     {
         $this->authorizePdp($pdp);
+
+        $check = $this->validator->check($pdp);
+        if (! $check['can_sign']) {
+            return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+                ->with('error', "Impossible de valider : {$check['errors_count']} erreur(s) critique(s) à corriger d'abord.");
+        }
 
         $pdp->update([
             'status' => Pdp::STATUS_AWAITING_SIGNATURES,
@@ -261,6 +276,13 @@ class PdpController extends Controller
     public function signSalti(Pdp $pdp, Request $request): RedirectResponse
     {
         $this->authorizePdp($pdp);
+
+        // Garde-fou : pas de signature tant qu'il y a des erreurs critiques
+        $check = $this->validator->check($pdp);
+        if (! $check['can_sign']) {
+            return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+                ->with('error', "Signature bloquée : {$check['errors_count']} erreur(s) critique(s) à corriger d'abord.");
+        }
 
         $request->validate([
             'signature_data' => 'required|string',
@@ -294,6 +316,13 @@ class PdpController extends Controller
 
         if ($pdp->mode !== Pdp::MODE_PRESENTIEL) {
             abort(400, 'Cette action est réservée au mode présentiel.');
+        }
+
+        // Garde-fou : pas de signature tant qu'il y a des erreurs critiques
+        $check = $this->validator->check($pdp);
+        if (! $check['can_sign']) {
+            return redirect()->route('pdp.edit', ['pdp' => $pdp, 'step' => 6])
+                ->with('error', "Signature bloquée : {$check['errors_count']} erreur(s) critique(s) à corriger d'abord.");
         }
 
         $request->validate([
@@ -337,6 +366,75 @@ class PdpController extends Controller
                 'final_pdf_sha256' => $hash,
             ]);
         }
+    }
+
+    /**
+     * Annulation d'un PDP (soft : status passe à "cancelled" mais on garde la trace).
+     */
+    public function cancel(Pdp $pdp, Request $request): RedirectResponse
+    {
+        $this->authorizePdp($pdp);
+
+        if (in_array($pdp->status, [Pdp::STATUS_SIGNED, Pdp::STATUS_ARCHIVED])) {
+            return back()->with('error', 'Impossible d\'annuler un PDP déjà signé. Utilisez "Réouvrir" pour modifications.');
+        }
+
+        $pdp->update([
+            'status' => Pdp::STATUS_CANCELLED,
+            'cancelled_at' => now(),
+            'cancelled_reason' => $request->input('reason', 'Annulé par '.Auth::user()->name),
+        ]);
+
+        $this->logAudit($pdp, 'cancelled', $request, ['reason' => $pdp->cancelled_reason]);
+
+        return redirect()->route('dashboard')->with('success', 'PDP annulé.');
+    }
+
+    /**
+     * Suppression définitive d'un PDP. RÉSERVÉ AU QSE CENTRAL.
+     */
+    public function destroy(Pdp $pdp, Request $request): RedirectResponse
+    {
+        if (! Auth::user()->isQseAdmin()) {
+            abort(403, 'Suppression réservée au compte QSE central.');
+        }
+
+        $uuid = $pdp->uuid;
+        $pdp->delete();
+
+        return redirect()->route('dashboard')->with('success', "PDP {$uuid} supprimé définitivement.");
+    }
+
+    /**
+     * Réouvrir un PDP signé pour permettre des corrections (passe en "corrections_requested").
+     * Réservé au QSE central — laisse une trace dans l'audit log.
+     * Les signatures précédentes sont effacées (il faudra re-signer).
+     */
+    public function reopen(Pdp $pdp, Request $request): RedirectResponse
+    {
+        if (! Auth::user()->isQseAdmin()) {
+            abort(403, 'Réouverture réservée au compte QSE central.');
+        }
+
+        $data = $pdp->data;
+        $data['signature_salti'] = null;
+        $data['signature_ee'] = null;
+
+        $pdp->update([
+            'status' => Pdp::STATUS_DRAFT,
+            'signed_by_salti_at' => null,
+            'signed_by_prestataire_at' => null,
+            'validated_by_salti_at' => null,
+            'final_pdf_path' => null,
+            'final_pdf_sha256' => null,
+            'data' => $data,
+        ]);
+
+        $this->logAudit($pdp, 'reopened_by_qse', $request, [
+            'reason' => $request->input('reason', 'Réouverture pour correction'),
+        ]);
+
+        return redirect()->route('pdp.edit', $pdp)->with('success', 'PDP rouvert pour modification. Les signatures précédentes ont été effacées.');
     }
 
     /**

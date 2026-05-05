@@ -107,10 +107,37 @@
                             {{ $pdp->updated_at->diffForHumans() }}
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('pdp.edit', $pdp) }}"
-                               class="text-salti-yellow-dark hover:underline font-medium text-sm">
-                                Ouvrir →
-                            </a>
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="{{ route('pdp.edit', $pdp) }}"
+                                   class="text-salti-yellow-dark hover:underline font-medium text-sm">
+                                    Ouvrir
+                                </a>
+
+                                @if($pdp->status === 'signed' && auth()->user()->isQseAdmin())
+                                    <form method="POST" action="{{ route('pdp.reopen', $pdp) }}" class="inline"
+                                          onsubmit="return confirm('Réouvrir ce PDP signé ? Les signatures précédentes seront effacées.');">
+                                        @csrf
+                                        <button type="submit" class="text-orange-600 hover:underline text-sm">Réouvrir</button>
+                                    </form>
+                                @endif
+
+                                @if(! in_array($pdp->status, ['signed', 'archived', 'cancelled']))
+                                    <form method="POST" action="{{ route('pdp.cancel', $pdp) }}" class="inline"
+                                          onsubmit="return confirm('Annuler ce PDP ? Il restera consultable mais marqué annulé.');">
+                                        @csrf
+                                        <button type="submit" class="text-gray-500 hover:text-red-600 text-sm">Annuler</button>
+                                    </form>
+                                @endif
+
+                                @if(auth()->user()->isQseAdmin())
+                                    <form method="POST" action="{{ route('pdp.destroy', $pdp) }}" class="inline"
+                                          onsubmit="return confirm('⚠ Supprimer DÉFINITIVEMENT ce PDP ? Cette action est irréversible.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline text-sm">Supprimer</button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @endforeach
