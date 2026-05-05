@@ -226,23 +226,22 @@ class PdpController extends Controller
 
     /**
      * Téléchargement du PDF final (une fois signé).
+     * Utilise response()->download() qui force le Content-Disposition: attachment
+     * (response()->file() avec un header attachment est ignoré par certains navigateurs).
      */
-    public function download(Pdp $pdp): BinaryFileResponse
+    public function download(Pdp $pdp)
     {
         $this->authorizePdp($pdp);
 
-        if (! $pdp->final_pdf_path) {
-            $pdp->update([
-                'final_pdf_path' => $this->generator->generate($pdp),
-            ]);
-            $pdp->refresh();
-        }
+        // Régénère systématiquement à la demande pour avoir la version la plus à jour
+        $relativePath = $this->generator->generate($pdp);
+        $pdp->update(['final_pdf_path' => $relativePath]);
 
-        $absolutePath = storage_path('app/'.$pdp->final_pdf_path);
+        $absolutePath = storage_path('app/'.$relativePath);
+        $filename = 'plan-prevention-'.$pdp->uuid.'.pdf';
 
-        return response()->file($absolutePath, [
+        return response()->download($absolutePath, $filename, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="plan-prevention-'.$pdp->uuid.'.pdf"',
         ]);
     }
 

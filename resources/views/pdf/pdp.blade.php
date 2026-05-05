@@ -9,6 +9,15 @@
     $cb = fn($v) => !empty($v) ? '☒' : '☐';
     // Pas de e() ici : Blade {{ }} escape déjà — sinon double-encoding (d&#039;agence)
     $val = fn($v) => $v !== null && $v !== '' ? $v : '';
+    /**
+     * Affiche une date au format jj/mm/aaaa peu importe le format d'entrée.
+     * Accepte ISO (2026-05-07), français (07/05/2026), null, etc.
+     */
+    $date = function ($v) {
+        if (empty($v)) return '';
+        try { return \Carbon\Carbon::parse($v)->format('d/m/Y'); }
+        catch (\Throwable $e) { return $v; }
+    };
     $risques = $data['risques'] ?? [];
     $epi = $data['epi'] ?? [];
     $autresRisques = collect($data['autres_risques'] ?? [])->take(5);
@@ -212,7 +221,7 @@
         <tr>
             <td>Date de début de l'intervention :</td>
             <td>
-                <span class="field-value">{{ $val($data['operation']['date_debut'] ?? null) }}</span>
+                <span class="field-value">{{ $date($data['operation']['date_debut'] ?? null) }}</span>
                 &nbsp;&nbsp;&nbsp;&nbsp;
                 Durée prévisible : <span class="field-value">{{ $val($data['operation']['duree'] ?? null) }}</span>
             </td>
@@ -230,7 +239,7 @@
     {{-- Inspection commune --}}
     <table class="bordered" style="margin-top:8px">
         <tr><th class="title-yellow">Inspection commune avant le début des travaux (À compléter obligatoirement)</th></tr>
-        <tr><td>Date de l'inspection : <span class="field-value">{{ $val($data['inspection']['date'] ?? null) }}</span></td></tr>
+        <tr><td>Date de l'inspection : <span class="field-value">{{ $date($data['inspection']['date'] ?? null) }}</span></td></tr>
         <tr><td>Participants à l'inspection : <span class="field-value">{{ $val($data['inspection']['participants'] ?? null) }}</span></td></tr>
         <tr><td>Informations échangées et/ou les documents communiqués : <span class="field-value">{{ $val($data['inspection']['informations_echangees'] ?? null) }}</span></td></tr>
         <tr><td>Zones visitées : <span class="field-value">{{ $val($data['inspection']['zones_visitees'] ?? null) }}</span></td></tr>
