@@ -79,5 +79,6 @@ Route::post('/p/{token}/sign', [PrestataireAccessController::class, 'sign'])->na
 Route::post('/p/{token}/upload', [PrestataireAccessController::class, 'uploadDocument'])->name('prestataire.upload');
 Route::delete('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'deleteDocument'])->name('prestataire.delete-document');
 Route::get('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'downloadDocument'])->name('prestataire.download-document');
+Route::post('/p/{token}/sign-intervenant/{intervenant}', [PrestataireAccessController::class, 'signIntervenant'])->name('prestataire.sign-intervenant');
 
 require __DIR__.'/auth.php';

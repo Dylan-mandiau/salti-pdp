@@ -52,6 +52,8 @@ class Pdp extends Model
         return [
             'data' => 'array',
             'require_otp' => 'boolean',
+            'agency_id' => 'integer',         // garantit la comparaison stricte avec auth()->id()
+            'prestataire_id' => 'integer',
             'magic_token_expires_at' => 'datetime',
             'sent_to_prestataire_at' => 'datetime',
             'submitted_by_prestataire_at' => 'datetime',

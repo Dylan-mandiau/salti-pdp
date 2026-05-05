@@ -205,6 +205,55 @@
             <p class="text-xs text-gray-500 mt-2">⚠ Les habilitations doivent être valides à la date de début de l'intervention.</p>
         </div>
 
+        {{-- Attestation de prise de connaissance — chaque salarié signe individuellement --}}
+        @if($habs->count() > 0)
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="font-semibold mb-2">Attestation de prise de connaissance du Plan de Prévention</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Chaque salarié intervenant doit signer ci-dessous pour attester avoir pris connaissance
+                du présent plan de prévention, des risques et des mesures associées.
+            </p>
+
+            <div class="space-y-4">
+                @foreach($habs as $iv)
+                    <div class="border border-gray-200 rounded-lg p-4" data-intervenant-id="{{ $iv->id }}">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <div class="font-medium">{{ $iv->nom_prenom }}</div>
+                                @if($iv->habilitation)
+                                    <div class="text-xs text-gray-500">{{ $iv->habilitation }}</div>
+                                @endif
+                            </div>
+                            @if($iv->signature_data)
+                                <span class="text-sm text-green-700 bg-green-50 px-3 py-1 rounded border border-green-200">
+                                    ✓ Signé le {{ $iv->date_signature?->format('d/m/Y') }}
+                                </span>
+                            @endif
+                        </div>
+
+                        @if(! $iv->signature_data)
+                            <canvas id="sig-iv-{{ $iv->id }}" class="border-2 border-dashed border-gray-300 rounded w-full bg-white" height="120"></canvas>
+                            <div class="flex gap-2 mt-2">
+                                <button type="button" onclick="clearIntervenantSig({{ $iv->id }})" class="text-sm text-gray-600">Effacer</button>
+                                <button type="button" onclick="saveIntervenantSig({{ $iv->id }})"
+                                        class="ml-auto bg-salti-yellow hover:bg-salti-yellow-dark text-black font-semibold px-4 py-2 rounded text-sm">
+                                    Signer l'attestation
+                                </button>
+                            </div>
+                        @else
+                            <div class="flex justify-center mt-2 p-3 bg-gray-50 rounded border border-gray-200">
+                                <img src="{{ $iv->signature_data }}" alt="Signature" class="max-h-20">
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+            <p class="text-xs text-gray-500 mt-3">
+                💡 Sur tablette / smartphone, le salarié peut signer directement avec son doigt ou un stylet.
+            </p>
+        </div>
+        @endif
+
         {{-- Liste des risques standards SALTI déjà identifiés (lecture seule) --}}
         @php
             $risquesStandard = [
@@ -551,6 +600,43 @@
         });
         if (r.ok) {
             document.querySelector(`[data-doc-id="${docId}"]`)?.remove();
+        }
+    };
+
+    // Signatures d'attestation par intervenant
+    const intervenantSigPads = {};
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('canvas[id^="sig-iv-"]').forEach(canvas => {
+            const id = canvas.id.replace('sig-iv-', '');
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            intervenantSigPads[id] = new SignaturePad(canvas, { penColor: '#000' });
+        });
+    });
+    window.clearIntervenantSig = function(id) { intervenantSigPads[id]?.clear(); };
+    window.saveIntervenantSig = async function(id) {
+        const pad = intervenantSigPads[id];
+        if (!pad || pad.isEmpty()) {
+            alert('Veuillez signer avant de valider.');
+            return;
+        }
+        const dataUrl = pad.toDataURL('image/png');
+        try {
+            const r = await fetch(`/p/${TOKEN}/sign-intervenant/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                body: JSON.stringify({ signature_data: dataUrl }),
+            });
+            const d = await r.json();
+            if (d.ok) {
+                location.reload(); // recharger pour afficher la signature persistée
+            } else {
+                alert('Erreur : '+(d.error || 'inconnue'));
+            }
+        } catch (err) {
+            alert('Erreur lors de la sauvegarde : '+err.message);
         }
     }
 </script>

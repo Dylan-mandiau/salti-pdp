@@ -470,6 +470,9 @@ class PdpController extends Controller
      * Vérifie que l'utilisateur a le droit d'accéder à ce PDP.
      * Compte d'agence → uniquement les PDP de son agence.
      * Compte QSE central → tous.
+     *
+     * ⚠ Cast en int explicite : agency_id peut être renvoyé en string par PDO
+     * selon la config, ce qui faisait échouer la comparaison stricte (!==).
      */
     private function authorizePdp(Pdp $pdp): void
     {
@@ -477,7 +480,7 @@ class PdpController extends Controller
         if ($user->isQseAdmin()) {
             return;
         }
-        if ($pdp->agency_id !== $user->id) {
+        if ((int) $pdp->agency_id !== (int) $user->id) {
             abort(403, 'Accès refusé : ce PDP appartient à une autre agence.');
         }
     }

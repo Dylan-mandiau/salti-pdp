@@ -153,6 +153,37 @@ class PrestataireAccessController extends Controller
     }
 
     /**
+     * Un salarié intervenant signe l'attestation de prise de connaissance du PDP.
+     * Stocke la signature + date sur la ligne pdp_intervenants correspondante.
+     */
+    public function signIntervenant(string $token, int $intervenantId, Request $request)
+    {
+        $pdp = $this->resolveToken($token);
+
+        $request->validate([
+            'signature_data' => 'required|string',
+        ]);
+
+        $iv = $pdp->intervenants()->where('id', $intervenantId)->first();
+        if (! $iv) abort(404);
+
+        $iv->update([
+            'signature_data' => $request->input('signature_data'),
+            'date_signature' => now()->toDateString(),
+        ]);
+
+        $this->logAudit($pdp, 'attestation_signed', $request, [
+            'intervenant_id' => $intervenantId,
+            'nom_prenom' => $iv->nom_prenom,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'date_signature' => $iv->date_signature->format('d/m/Y'),
+        ]);
+    }
+
+    /**
      * Le prestataire soumet sa partie pour validation par SALTI.
      */
     public function submit(string $token, Request $request): RedirectResponse
