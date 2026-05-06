@@ -92,4 +92,10 @@ Route::delete('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'd
 Route::get('/p/{token}/upload/{doc}', [PrestataireAccessController::class, 'downloadDocument'])->name('prestataire.download-document');
 Route::post('/p/{token}/sign-intervenant/{intervenant}', [PrestataireAccessController::class, 'signIntervenant'])->name('prestataire.sign-intervenant');
 
+// Téléchargements de documents pré-remplis (presta peut les récupérer à tout moment)
+Route::get('/p/{token}/download/permis-feu', [PrestataireAccessController::class, 'downloadPermisFeu'])->name('prestataire.download-permis-feu');
+Route::get('/p/{token}/download/convention-pret', [PrestataireAccessController::class, 'downloadConventionPret'])->name('prestataire.download-convention-pret');
+Route::get('/p/{token}/download/plan-acces', [PrestataireAccessController::class, 'downloadPlanAcces'])->name('prestataire.download-plan-acces');
+Route::get('/p/{token}/download/pdp', [PrestataireAccessController::class, 'downloadMainPdp'])->name('prestataire.download-main-pdp');
+
 require __DIR__.'/auth.php';

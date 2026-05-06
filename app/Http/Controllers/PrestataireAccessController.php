@@ -157,6 +157,50 @@ class PrestataireAccessController extends Controller
     }
 
     /**
+     * Télécharge le Permis feu pré-rempli pour ce PDP.
+     * Régénéré à la volée pour avoir toujours la dernière version.
+     */
+    public function downloadPermisFeu(string $token, \App\Services\AnnexDocumentsGenerator $gen)
+    {
+        $pdp = $this->resolveToken($token);
+        $relativePath = $gen->generatePermisFeu($pdp);
+        return response()->download(storage_path('app/'.$relativePath), 'permis-feu-'.$pdp->uuid.'.pdf');
+    }
+
+    /**
+     * Télécharge la Convention de prêt pré-remplie.
+     */
+    public function downloadConventionPret(string $token, \App\Services\AnnexDocumentsGenerator $gen)
+    {
+        $pdp = $this->resolveToken($token);
+        $relativePath = $gen->generateConventionPret($pdp);
+        return response()->download(storage_path('app/'.$relativePath), 'convention-pret-'.$pdp->uuid.'.pdf');
+    }
+
+    /**
+     * Télécharge le Plan d'accès de l'agence (s'il existe).
+     */
+    public function downloadPlanAcces(string $token)
+    {
+        $pdp = $this->resolveToken($token);
+        if (! $pdp->agency?->access_plan_path) abort(404);
+        return response()->download(
+            storage_path('app/'.$pdp->agency->access_plan_path),
+            $pdp->agency->access_plan_filename ?? 'plan-acces.pdf'
+        );
+    }
+
+    /**
+     * Télécharge le PDP principal (le PDF généré).
+     */
+    public function downloadMainPdp(string $token, \App\Services\PdpHtmlPdfGenerator $gen)
+    {
+        $pdp = $this->resolveToken($token);
+        $relativePath = $gen->generate($pdp);
+        return response()->download(storage_path('app/'.$relativePath), 'plan-prevention-'.$pdp->uuid.'.pdf');
+    }
+
+    /**
      * Un salarié intervenant signe l'attestation de prise de connaissance du PDP.
      * Stocke la signature + date sur la ligne pdp_intervenants correspondante.
      */

@@ -218,6 +218,130 @@
             <p class="text-xs text-gray-500 mt-2">⚠ Les habilitations doivent être valides à la date de début de l'intervention.</p>
         </div>
 
+        {{-- Permis feu — apparaît seulement si la case est cochée par SALTI --}}
+        @if($data['documents_remis_ee']['permis_feu'] ?? false)
+            @php $pf = $data['permis_feu'] ?? []; @endphp
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6" x-data="{ mode: '{{ $pf['mode_remplissage'] ?? 'paper' }}' }">
+                <h2 class="font-semibold mb-2">🔥 Permis feu</h2>
+                <p class="text-sm text-gray-600 mb-3">Ce document est requis pour les travaux par points chauds (soudure, meulage, découpe, etc.).</p>
+
+                <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                    <p class="text-sm font-medium mb-2">Comment souhaitez-vous compléter le Permis feu ?</p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <label class="flex items-start gap-2 cursor-pointer flex-1 p-3 border rounded {{ ($pf['mode_remplissage'] ?? '') === 'paper' ? 'border-salti-yellow bg-white' : 'border-gray-200' }}">
+                            <input type="radio" data-cb-path="permis_feu.mode_remplissage" name="pf_mode" value="paper" x-model="mode" class="mt-0.5">
+                            <span class="text-sm">
+                                <strong>📄 Papier</strong><br>
+                                Je télécharge le PDF pré-rempli, je l'imprime, je le complète à la main, le fais signer, scan + upload via la zone "Documents".
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-2 cursor-pointer flex-1 p-3 border rounded {{ ($pf['mode_remplissage'] ?? '') === 'online' ? 'border-salti-yellow bg-white' : 'border-gray-200' }}">
+                            <input type="radio" data-cb-path="permis_feu.mode_remplissage" name="pf_mode" value="online" x-model="mode" class="mt-0.5">
+                            <span class="text-sm">
+                                <strong>💻 En ligne</strong><br>
+                                Je remplis directement les champs ci-dessous, le PDF se génère automatiquement.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Mode "papier" : lien de téléchargement --}}
+                <div x-show="mode === 'paper'" class="bg-blue-50 border border-blue-200 rounded p-3 mb-3 text-sm">
+                    <p class="font-medium mb-1">📥 Téléchargez le PDF Permis feu pré-rempli :</p>
+                    <a href="{{ route('prestataire.download-permis-feu', $token) }}" class="inline-block mt-2 bg-salti-yellow hover:bg-salti-yellow-dark text-black font-semibold px-4 py-2 rounded">
+                        📄 Télécharger le Permis feu pré-rempli
+                    </a>
+                    <p class="text-xs text-gray-600 mt-2">Une fois rempli + signé, scannez ou photographiez le document et uploadez-le dans la section "Documents que vous remettez à SALTI" plus haut.</p>
+                </div>
+
+                {{-- Mode "en ligne" : formulaire complet --}}
+                <div x-show="mode === 'online'" x-cloak class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Mode opératoire (référence)</label>
+                        <input type="text" data-path="permis_feu.mode_operatoire" value="{{ $pf['mode_operatoire'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Liste des opérateurs autorisés</label>
+                        <textarea data-path="permis_feu.operateurs_autorises" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows="3" placeholder="Auto-rempli depuis vos salariés intervenants si laissé vide">{{ $pf['operateurs_autorises'] ?? '' }}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="font-medium text-sm mb-2">Type de travaux par points chauds</p>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.travaux.soudage" {{ ($pf['travaux']['soudage'] ?? false) ? 'checked' : '' }}> Soudage</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.travaux.tronconnage" {{ ($pf['travaux']['tronconnage'] ?? false) ? 'checked' : '' }}> Tronçonnage</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.travaux.decoupage" {{ ($pf['travaux']['decoupage'] ?? false) ? 'checked' : '' }}> Découpage</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.travaux.meulage" {{ ($pf['travaux']['meulage'] ?? false) ? 'checked' : '' }}> Meulage</label>
+                            <input type="text" data-path="permis_feu.travaux.autre" value="{{ $pf['travaux']['autre'] ?? '' }}" placeholder="Autre travail..." class="w-full mt-1 border border-gray-300 rounded px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <p class="font-medium text-sm mb-2">Matériels utilisés</p>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.materiels.poste_souder" {{ ($pf['materiels']['poste_souder'] ?? false) ? 'checked' : '' }}> Poste à souder</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.materiels.chalumeau" {{ ($pf['materiels']['chalumeau'] ?? false) ? 'checked' : '' }}> Chalumeau</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.materiels.laser" {{ ($pf['materiels']['laser'] ?? false) ? 'checked' : '' }}> Laser</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.materiels.tronconneuse" {{ ($pf['materiels']['tronconneuse'] ?? false) ? 'checked' : '' }}> Tronçonneuse</label>
+                            <input type="text" data-path="permis_feu.materiels.autre" value="{{ $pf['materiels']['autre'] ?? '' }}" placeholder="Autre matériel..." class="w-full mt-1 border border-gray-300 rounded px-3 py-1.5 text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Risques particuliers (produits, procédés, stockages...)</label>
+                        <textarea data-path="permis_feu.risques_particuliers" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows="2">{{ $pf['risques_particuliers'] ?? '' }}</textarea>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.zone_atex_presence" {{ ($pf['zone_atex_presence'] ?? false) ? 'checked' : '' }}> Présence de zones ATEX</label>
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-cb-path="permis_feu.zone_atex_proximite" {{ ($pf['zone_atex_proximite'] ?? false) ? 'checked' : '' }}> Proximité de zones ATEX</label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Détails ATEX (type, étendue, produits...)</label>
+                        <textarea data-path="permis_feu.zone_atex_details" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows="2">{{ $pf['zone_atex_details'] ?? '' }}</textarea>
+                    </div>
+
+                    <p class="font-medium text-sm mt-3">Documents associés</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        <label class="flex items-center gap-2"><input type="checkbox" data-cb-path="permis_feu.documents_associes.autorisation_travail" {{ ($pf['documents_associes']['autorisation_travail'] ?? false) ? 'checked' : '' }}> Autorisation de travail</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" data-cb-path="permis_feu.documents_associes.permis_penetrer" {{ ($pf['documents_associes']['permis_penetrer'] ?? false) ? 'checked' : '' }}> Permis de pénétrer</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" data-cb-path="permis_feu.documents_associes.drpce" {{ ($pf['documents_associes']['drpce'] ?? false) ? 'checked' : '' }}> DRPCE</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" data-cb-path="permis_feu.documents_associes.certificat_degazage" {{ ($pf['documents_associes']['certificat_degazage'] ?? false) ? 'checked' : '' }}> Cert. dégazage</label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Surveillance pendant les travaux (nom)</label>
+                            <input type="text" data-path="permis_feu.surveillance_pendant" value="{{ $pf['surveillance_pendant'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Surveillance après travaux (nom)</label>
+                            <input type="text" data-path="permis_feu.surveillance_apres_nom" value="{{ $pf['surveillance_apres_nom'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Emplacement des moyens d'alerte (incendie / accident)</label>
+                        <textarea data-path="permis_feu.alerte_emplacement" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows="2">{{ $pf['alerte_emplacement'] ?? '' }}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Personne à contacter en cas d'accident</label>
+                            <input type="text" data-path="permis_feu.contact_accident_nom" value="{{ $pf['contact_accident_nom'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Téléphone</label>
+                            <input type="tel" data-path="permis_feu.contact_accident_tel" value="{{ $pf['contact_accident_tel'] ?? '' }}" maxlength="20" class="pdp-tel-input w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-2">💡 Le PDF Permis feu est régénéré automatiquement à chaque modification. Téléchargez-le quand vous avez terminé pour signature.</p>
+                    <a href="{{ route('prestataire.download-permis-feu', $token) }}" class="inline-block mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded text-sm">
+                        📄 Télécharger le Permis feu
+                    </a>
+                </div>
+            </div>
+        @endif
+
         {{-- Attestation de prise de connaissance — chaque salarié signe individuellement --}}
         @if($habs->count() > 0)
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
