@@ -106,6 +106,33 @@ class PdpTestGenerate extends Command
         $data['signature_salti_fonction'] = 'Responsable d\'agence';
         $data['signature_ee_fonction'] = 'Gérant';
 
+        // Permis feu rempli en ligne (test du fix bug #1)
+        $data['documents_remis_ee']['permis_feu'] = true;
+        $data['permis_feu']['mode_remplissage'] = 'online';
+        $data['permis_feu']['mode_operatoire'] = 'MOP-2026-014';
+        $data['permis_feu']['operateurs_autorises'] = "Tony BERNARD\nKarim AMRANI";
+        $data['permis_feu']['travaux'] = [
+            'soudage' => true, 'tronconnage' => false,
+            'decoupage' => true, 'meulage' => true, 'autre' => 'oxycoupage',
+        ];
+        $data['permis_feu']['materiels'] = [
+            'poste_souder' => true, 'chalumeau' => false,
+            'laser' => false, 'tronconneuse' => true, 'autre' => 'meuleuse 230mm',
+        ];
+        $data['permis_feu']['risques_particuliers'] = 'Présence de poussières inflammables dans la zone de découpe';
+        $data['permis_feu']['zone_atex_proximite'] = true;
+        $data['permis_feu']['documents_associes'] = [
+            'autorisation_travail' => true, 'permis_penetrer' => false,
+            'drpce' => true, 'certificat_degazage' => false,
+        ];
+        $data['permis_feu']['surveillance_pendant'] = 'Pierre MARTIN';
+        $data['permis_feu']['surveillance_apres_de'] = '17';
+        $data['permis_feu']['surveillance_apres_a'] = '19';
+        $data['permis_feu']['surveillance_apres_nom'] = 'Pierre MARTIN';
+        $data['permis_feu']['contact_accident_nom'] = 'Marie LEFEVRE';
+        $data['permis_feu']['contact_accident_tel'] = '05.56.99.99.99';
+        $data['permis_feu']['date_delivrance'] = '15/05/2026';
+
         $pdp = Pdp::create([
             'agency_id' => $agency->id,
             'prestataire_id' => $prestataire->id,

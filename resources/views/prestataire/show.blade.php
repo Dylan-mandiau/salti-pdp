@@ -625,7 +625,7 @@
                     Conservez ces documents pour vos archives. Vous pouvez y revenir à tout moment via ce lien.
                 </p>
                 <ul class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
-                    {{-- Le PDP --}}
+                    {{-- Le PDP : consultation tant que non signé, téléchargement après --}}
                     <li class="flex items-center justify-between gap-3 px-4 py-3">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="text-2xl flex-shrink-0">📋</span>
@@ -637,14 +637,18 @@
                                     @elseif($pdp->signed_by_prestataire_at)
                                         Signé de votre côté — en attente SALTI
                                     @else
-                                        Version en cours
+                                        Téléchargement disponible après votre signature
                                     @endif
                                 </div>
                             </div>
                         </div>
                         <a href="{{ route('prestataire.download-main-pdp', $token) }}" target="_blank"
                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
-                            📥 Télécharger
+                            @if($pdp->signed_by_prestataire_at)
+                                📥 Télécharger
+                            @else
+                                👁 Consulter
+                            @endif
                         </a>
                     </li>
 

@@ -45,7 +45,7 @@ class PrestataireAccessController extends Controller
         $payload = $request->input('data', []);
 
         // 1) Mise à jour des données JSON (clés autorisées côté prestataire)
-        $allowed = ['ee', 'autres_risques', 'risques', 'documents_remis_salti'];
+        $allowed = ['ee', 'autres_risques', 'risques', 'documents_remis_salti', 'permis_feu'];
         $data = $pdp->data;
         foreach ($allowed as $key) {
             if (isset($payload[$key])) {
@@ -192,12 +192,27 @@ class PrestataireAccessController extends Controller
 
     /**
      * Télécharge le PDP principal (le PDF généré).
+     *
+     * AVANT signature presta → mode preview (inline) : permet la consultation
+     * obligatoire avant signature, mais bloque le téléchargement du document
+     * non finalisé.
+     * APRÈS signature presta → téléchargement (attachment).
      */
     public function downloadMainPdp(string $token, \App\Services\PdpHtmlPdfGenerator $gen)
     {
         $pdp = $this->resolveToken($token);
         $relativePath = $gen->generate($pdp);
-        return response()->download(storage_path('app/'.$relativePath), 'plan-prevention-'.$pdp->uuid.'.pdf');
+        $absolutePath = storage_path('app/'.$relativePath);
+
+        if (! $pdp->signed_by_prestataire_at) {
+            // Preview only : pas de download tant que pas signé
+            return response()->file($absolutePath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="plan-prevention-preview.pdf"',
+            ]);
+        }
+
+        return response()->download($absolutePath, 'plan-prevention-'.$pdp->uuid.'.pdf');
     }
 
     /**
