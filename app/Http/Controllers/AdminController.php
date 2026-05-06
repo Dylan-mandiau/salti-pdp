@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
-use App\Models\QseInterlocutor;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -284,62 +283,6 @@ class AdminController extends Controller
      * Suppression d'une agence (avec confirmation).
      * ⚠ Cascade : supprime aussi tous les PDP rattachés à cette agence.
      */
-    /**
-     * Liste des interlocuteurs QSE — éditable par le QSE central.
-     * Ces noms / téléphones apparaissent sur la page 1 du PDP.
-     */
-    public function interlocutors(): View
-    {
-        $this->ensureQseAdmin();
-        return view('admin.interlocutors.index', [
-            'interlocutors' => QseInterlocutor::orderBy('sort_order')->get(),
-        ]);
-    }
-
-    public function storeInterlocutor(Request $request): RedirectResponse
-    {
-        $this->ensureQseAdmin();
-
-        $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'role' => 'required|string|max:120',
-            'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:120',
-            'is_main' => 'sometimes|boolean',
-        ]);
-        $data['is_main'] = $request->boolean('is_main');
-        $data['sort_order'] = (QseInterlocutor::max('sort_order') ?? 0) + 1;
-
-        QseInterlocutor::create($data);
-
-        return back()->with('success', 'Interlocuteur ajouté.');
-    }
-
-    public function updateInterlocutor(QseInterlocutor $interlocutor, Request $request): RedirectResponse
-    {
-        $this->ensureQseAdmin();
-
-        $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'role' => 'required|string|max:120',
-            'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:120',
-            'is_main' => 'sometimes|boolean',
-        ]);
-        $data['is_main'] = $request->boolean('is_main');
-
-        $interlocutor->update($data);
-
-        return back()->with('success', 'Interlocuteur mis à jour.');
-    }
-
-    public function deleteInterlocutor(QseInterlocutor $interlocutor): RedirectResponse
-    {
-        $this->ensureQseAdmin();
-        $interlocutor->delete();
-        return back()->with('success', 'Interlocuteur supprimé.');
-    }
-
     public function destroyAgency(User $agency): RedirectResponse
     {
         $this->ensureQseAdmin();

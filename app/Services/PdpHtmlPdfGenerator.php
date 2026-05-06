@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Pdp;
-use App\Models\QseInterlocutor;
 use Illuminate\Support\Facades\View;
 use Mpdf\Config\ConfigVariables;
 use Mpdf\Config\FontVariables;
@@ -54,7 +53,6 @@ class PdpHtmlPdfGenerator
             'intervenants' => $pdp->intervenants,
             'agency' => $pdp->agency,
             'assets' => public_path('pdf-assets').'/',
-            'interlocutors' => QseInterlocutor::listForPdf(),
         ])->render();
 
         $mpdf->WriteHTML($html);

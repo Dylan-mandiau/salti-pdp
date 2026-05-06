@@ -70,12 +70,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [App\Http\Controllers\AdminController::class, 'settings'])->name('settings');
         Route::post('/settings/{type}', [App\Http\Controllers\AdminController::class, 'uploadGlobalFile'])->name('settings.upload');
         Route::delete('/settings/{type}', [App\Http\Controllers\AdminController::class, 'deleteGlobalFile'])->name('settings.delete');
-
-        // Interlocuteurs QSE (sur page 1 du PDP)
-        Route::get('/interlocutors', [App\Http\Controllers\AdminController::class, 'interlocutors'])->name('interlocutors.index');
-        Route::post('/interlocutors', [App\Http\Controllers\AdminController::class, 'storeInterlocutor'])->name('interlocutors.store');
-        Route::patch('/interlocutors/{interlocutor}', [App\Http\Controllers\AdminController::class, 'updateInterlocutor'])->name('interlocutors.update');
-        Route::delete('/interlocutors/{interlocutor}', [App\Http\Controllers\AdminController::class, 'deleteInterlocutor'])->name('interlocutors.delete');
     });
 
     // Téléchargement des fichiers globaux (accessible à tous les utilisateurs SALTI)

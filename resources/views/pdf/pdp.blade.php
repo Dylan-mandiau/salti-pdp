@@ -93,11 +93,6 @@
         font-variant: small-caps;
     }
     .eu-ee td.cell { padding: 6px 8px; min-height: 60px; }
-    .interlocuteurs td {
-        background: #fafafa;
-        font-size: 8.5pt;
-        padding: 6px;
-    }
 
     /* Champs renseignés */
     .field-label { color: #000; }
@@ -193,27 +188,6 @@
                 <p style="font-size:7.5pt;font-style:italic;color:#333">
                     Si oui : faire signer pdp avec les autres sous traitants
                 </p>
-            </td>
-        </tr>
-        <tr>
-            <td colspan="2" style="text-align:center; padding:3px; background:#FFC000; font-weight:bold; font-variant:small-caps;">
-                Interlocuteurs sécurité :
-            </td>
-        </tr>
-        <tr>
-            <td colspan="2" class="interlocuteurs">
-                <table style="width:100%"><tr>
-                    <td style="width:50%; text-align:center;">
-                        @foreach($interlocutors as $contact)
-                            @if($contact->is_main)<strong>{{ $contact->name }}</strong>@else{{ $contact->name }}@endif
-                            @if($contact->role) - {{ $contact->role }}@endif
-                            @if($contact->phone) — {{ $contact->phone }}@endif
-                            @if($contact->email)<br><span style="color:#0070c0;text-decoration:underline">{{ $contact->email }}</span>@endif
-                            <br>
-                        @endforeach
-                    </td>
-                    <td style="width:50%"></td>
-                </tr></table>
             </td>
         </tr>
     </table>
