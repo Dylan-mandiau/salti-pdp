@@ -56,6 +56,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/pdp/{pdp}/document', [PdpController::class, 'uploadDocument'])->name('pdp.upload.document');
     Route::delete('/pdp/{pdp}/document/{doc}', [PdpController::class, 'deleteDocument'])->name('pdp.delete.document');
 
+    // Export ZIP (QSE only) — sélection multiple de PDPs depuis le dashboard
+    Route::post('/pdps/download-zip', [PdpController::class, 'downloadZip'])->name('pdps.download-zip');
+
     // Profil (Breeze par défaut)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

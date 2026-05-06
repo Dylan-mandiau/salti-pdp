@@ -30,7 +30,7 @@ class PdpController extends Controller
      * Tableau de bord : liste des PDP de l'agence connectée.
      * Le compte QSE central voit tous les PDP de toutes les agences.
      */
-    public function dashboard(): View
+    public function dashboard(Request $request): View
     {
         $user = Auth::user();
         $query = Pdp::query()->with(['prestataire', 'agency'])->latest();
@@ -39,15 +39,67 @@ class PdpController extends Controller
             $query->where('agency_id', $user->id);
         }
 
+        // ─── Filtres (QSE uniquement, mais on garde la même logique pour tous) ──
+        $period = $request->query('period', 'all'); // all|week|month|quarter|year|custom
+        $from = $request->query('from');
+        $to = $request->query('to');
+        $agencyIds = array_filter(explode(',', (string) $request->query('agencies', '')));
+        $statuses = array_filter(explode(',', (string) $request->query('statuses', '')));
+        $search = trim((string) $request->query('q', ''));
+
+        // Période rapide
+        $now = now();
+        switch ($period) {
+            case 'week':    $from = $now->copy()->startOfWeek()->toDateString(); $to = $now->copy()->endOfWeek()->toDateString(); break;
+            case 'month':   $from = $now->copy()->startOfMonth()->toDateString(); $to = $now->copy()->endOfMonth()->toDateString(); break;
+            case 'quarter': $from = $now->copy()->startOfQuarter()->toDateString(); $to = $now->copy()->endOfQuarter()->toDateString(); break;
+            case 'year':    $from = $now->copy()->startOfYear()->toDateString(); $to = $now->copy()->endOfYear()->toDateString(); break;
+        }
+
+        if ($from) $query->whereDate('created_at', '>=', $from);
+        if ($to) $query->whereDate('created_at', '<=', $to);
+        if (! empty($agencyIds)) $query->whereIn('agency_id', $agencyIds);
+        if (! empty($statuses)) $query->whereIn('status', $statuses);
+        if ($search !== '') {
+            $q = '%'.addcslashes($search, '%_').'%';
+            $query->where(function ($w) use ($q) {
+                $w->where('donneur_ordre_nom', 'like', $q)
+                  ->orWhere('data->ee->raison_sociale', 'like', $q)
+                  ->orWhere('data->operation->designation', 'like', $q)
+                  ->orWhereHas('prestataire', fn($pq) => $pq->where('raison_sociale', 'like', $q));
+            });
+        }
+
         $pdps = $query->get();
+
+        // Stats sur la requête NON filtrée pour rester cohérent visuellement
+        $statsQuery = Pdp::query();
+        if (! $user->isQseAdmin()) {
+            $statsQuery->where('agency_id', $user->id);
+        }
+        $allPdps = $statsQuery->get();
+
+        // Liste des agences pour le dropdown filtres (QSE uniquement)
+        $allAgencies = $user->isQseAdmin()
+            ? User::where('role', User::ROLE_AGENCY)->orderBy('city')->orderBy('name')->get(['id', 'name', 'city'])
+            : collect();
 
         return view('pdp.dashboard', [
             'pdps' => $pdps,
             'stats' => [
-                'drafts' => $pdps->where('status', Pdp::STATUS_DRAFT)->count(),
-                'awaiting_prestataire' => $pdps->where('status', Pdp::STATUS_AWAITING_PRESTATAIRE)->count(),
-                'awaiting_validation' => $pdps->where('status', Pdp::STATUS_AWAITING_VALIDATION)->count(),
-                'signed' => $pdps->where('status', Pdp::STATUS_SIGNED)->count(),
+                'drafts' => $allPdps->where('status', Pdp::STATUS_DRAFT)->count(),
+                'awaiting_prestataire' => $allPdps->where('status', Pdp::STATUS_AWAITING_PRESTATAIRE)->count(),
+                'awaiting_validation' => $allPdps->where('status', Pdp::STATUS_AWAITING_VALIDATION)->count(),
+                'signed' => $allPdps->where('status', Pdp::STATUS_SIGNED)->count(),
+            ],
+            'allAgencies' => $allAgencies,
+            'filters' => [
+                'period' => $period,
+                'from' => $from,
+                'to' => $to,
+                'agencies' => $agencyIds,
+                'statuses' => $statuses,
+                'q' => $search,
             ],
         ]);
     }
@@ -420,6 +472,36 @@ class PdpController extends Controller
         ]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Export ZIP d'une sélection de PDPs (QSE only).
+     * Structure : Agence/Client/{date} - {opération} - {type}.pdf
+     * Inclut : PDP principal + Permis feu + Convention + pièces jointes presta.
+     * Limite à 50 PDPs en sync ; au-delà, refuse pour éviter timeout.
+     */
+    public function downloadZip(Request $request, \App\Services\PdpZipExporter $exporter)
+    {
+        $user = Auth::user();
+        if (! $user->isQseAdmin()) {
+            abort(403, 'Export ZIP réservé au QSE central.');
+        }
+
+        $request->validate([
+            'pdp_ids' => 'required|array|min:1|max:50',
+            'pdp_ids.*' => 'integer|exists:pdps,id',
+        ]);
+
+        $pdps = Pdp::with(['prestataire', 'agency', 'documents'])
+            ->whereIn('id', $request->input('pdp_ids'))
+            ->get();
+
+        // Audit log
+        foreach ($pdps as $pdp) {
+            $this->logAudit($pdp, 'qse_zip_export', $request, ['count' => $pdps->count()]);
+        }
+
+        return $exporter->streamZip($pdps);
     }
 
     /**
