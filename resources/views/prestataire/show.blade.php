@@ -241,38 +241,92 @@
             <h2 class="font-semibold mb-2">Autorisations de conduite & habilitations de vos salariés</h2>
             @php
                 $habs = $pdp->intervenants()->orderBy('id')->get();
-                // Nombre de lignes = max(nb_salaries fourni par SALTI, lignes déjà saisies)
-                // Au moins 1 ligne pour démarrer
-                $habCount = max(1, $nbSalaries, $habs->count());
+                $empCount = max(1, $nbSalaries, $habs->count());
+                $recommendedCodes = $pdp->recommendedHabilitations();
+                $habCatalog = \App\Models\Pdp::HABILITATIONS_LIST;
             @endphp
             <p class="text-sm text-gray-600 mb-3">
-                Renseignez ci-dessous les salariés qui interviendront sur le site SALTI avec leurs habilitations valides.
+                Renseignez les salariés qui interviendront sur le site SALTI <strong>avec toutes leurs habilitations valides</strong>.
+                Un salarié peut avoir plusieurs habilitations (CACES, habilitations électriques, SST, etc.).
                 @if($nbSalaries > 0)
-                    <br><span class="text-blue-700">SALTI a indiqué <strong>{{ $nbSalaries }} salarié{{ $nbSalaries > 1 ? 's' : '' }} affecté{{ $nbSalaries > 1 ? 's' : '' }}</strong> — vous trouverez {{ $nbSalaries }} ligne{{ $nbSalaries > 1 ? 's' : '' }} prête{{ $nbSalaries > 1 ? 's' : '' }} à remplir.</span>
+                    <br><span class="text-blue-700">SALTI a indiqué <strong>{{ $nbSalaries }} salarié{{ $nbSalaries > 1 ? 's' : '' }} affecté{{ $nbSalaries > 1 ? 's' : '' }}</strong>.</span>
                 @endif
             </p>
-            {{-- Cards : affichage uniforme (1 col mobile, lignes horizontales desktop) --}}
-            <div class="space-y-3" id="hab-table">
-                @for($i = 0; $i < $habCount; $i++)
-                    @php $h = $habs->get($i); @endphp
-                    <div data-hab-line class="border border-gray-200 rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-2 md:mb-0 md:hidden">
+
+            {{-- Encadré "Habilitations recommandées" : visible uniquement si SALTI a coché
+                 au moins un risque qui mappe vers des habilitations --}}
+            @if(! empty($recommendedCodes))
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="text-sm font-semibold text-blue-900 mb-2">
+                        💡 Habilitations recommandées d'après les risques cochés par SALTI
+                    </div>
+                    <p class="text-xs text-blue-800 mb-2">
+                        Cliquez sur une habilitation pour l'ajouter au salarié de votre choix.
+                    </p>
+                    <div class="flex flex-wrap gap-1.5" id="hab-recommendations">
+                        @foreach($recommendedCodes as $code)
+                            @php $hab = $habCatalog[$code] ?? null; @endphp
+                            @if($hab)
+                                <button type="button"
+                                        onclick="addRecommendedHab('{{ $code }}', @js($hab[0]))"
+                                        class="bg-white border border-blue-300 hover:border-blue-500 hover:bg-blue-100 text-blue-900 text-xs px-2 py-1 rounded transition"
+                                        title="{{ $hab[1] }} — Réf : {{ $hab[2] }}">
+                                    + {{ $hab[0] }}
+                                </button>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Datalist HTML pour autocomplete des habilitations dans les inputs --}}
+            <datalist id="hab-catalog">
+                @foreach($habCatalog as $code => [$label, $cat, $ref])
+                    <option value="{{ $label }}" data-code="{{ $code }}">{{ $cat }} — {{ $label }}</option>
+                @endforeach
+            </datalist>
+
+            {{-- Liste des salariés avec leurs habilitations --}}
+            <div class="space-y-4" id="emp-list">
+                @for($i = 0; $i < $empCount; $i++)
+                    @php
+                        $h = $habs->get($i);
+                        $habList = $h?->habilitations_list ?? [];
+                        if (empty($habList)) {
+                            $habList = [['code' => null, 'label' => '', 'validity' => null]];
+                        }
+                    @endphp
+                    <div data-emp-card class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <div class="flex items-center justify-between mb-2">
                             <div class="text-xs font-semibold text-gray-500">Salarié #{{ $i + 1 }}</div>
-                            <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-2xl leading-none" title="Supprimer">×</button>
+                            <button type="button" onclick="removeEmpCard(this)" class="text-red-500 hover:text-red-700 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5" title="Supprimer le salarié">🗑 Supprimer</button>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_40px] gap-2 md:items-center">
-                            <input type="text" data-hab-row="{{ $i }}" data-hab-field="nom_prenom" value="{{ $h->nom_prenom ?? '' }}" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                            <input type="text" data-hab-row="{{ $i }}" data-hab-field="habilitation" value="{{ $h->habilitation ?? '' }}" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                            <div>
-                                <label class="text-xs text-gray-500 md:hidden">Date de validité</label>
-                                <input type="date" data-hab-row="{{ $i }}" data-hab-field="habilitation_validity" value="{{ $h?->habilitation_validity?->format('Y-m-d') ?? '' }}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
-                            </div>
-                            <button type="button" onclick="removeHabLine(this)" class="hidden md:block text-red-500 hover:text-red-700 text-lg justify-self-center" title="Supprimer">×</button>
+                        <input type="text" data-emp-field="nom_prenom" value="{{ $h?->nom_prenom ?? '' }}"
+                               placeholder="Nom Prénom du salarié"
+                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+                        <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
+                        <div class="space-y-2" data-hab-list>
+                            @foreach($habList as $habItem)
+                                <div data-hab-line class="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200">
+                                    <input type="text" data-hab-field="label" list="hab-catalog"
+                                           value="{{ $habItem['label'] }}"
+                                           placeholder="ex. CACES R489 cat 3 (taper pour suggestions)"
+                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                                    <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
+                                    <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}"
+                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+                                    <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
+                                </div>
+                            @endforeach
                         </div>
+                        <button type="button" onclick="addHabToEmp(this)"
+                                class="mt-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-xs hover:bg-white hover:border-salti-yellow transition">
+                            + Ajouter une habilitation
+                        </button>
                     </div>
                 @endfor
             </div>
-            <button type="button" onclick="addHabLine()"
+            <button type="button" onclick="addEmpCard()"
                     class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
                 <span class="text-lg">+</span> Ajouter un salarié
             </button>
@@ -873,55 +927,135 @@
             saveTimer = setTimeout(autoSave, 800);
         }));
     }
-    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-hab-row], [data-ar-row]').forEach(attachAutoSave);
+    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-emp-card] input, [data-ar-row]').forEach(attachAutoSave);
 
-    // Ajout / suppression de lignes Habilitations dynamiquement (format cards responsive)
-    function buildHabCardHtml(idx) {
-        return `
-            <div class="flex items-center justify-between mb-2 md:mb-0 md:hidden">
-                <div class="text-xs font-semibold text-gray-500">Salarié #${idx + 1}</div>
-                <button type="button" onclick="removeHabLine(this)" class="text-red-500 hover:text-red-700 text-2xl leading-none">×</button>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_40px] gap-2 md:items-center">
-                <input type="text" data-hab-row="${idx}" data-hab-field="nom_prenom" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                <input type="text" data-hab-row="${idx}" data-hab-field="habilitation" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                <div>
-                    <label class="text-xs text-gray-500 md:hidden">Date de validité</label>
-                    <input type="date" data-hab-row="${idx}" data-hab-field="habilitation_validity" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
-                </div>
-                <button type="button" onclick="removeHabLine(this)" class="hidden md:block text-red-500 hover:text-red-700 text-lg justify-self-center">×</button>
-            </div>
+    // ─── Catalogue habilitations (mirror de Pdp::HABILITATIONS_LIST) ─────────
+    const HAB_CATALOG = @json(\App\Models\Pdp::HABILITATIONS_LIST);
+
+    /** Construit une ligne <habilitation> (label + validity + bouton retirer) */
+    function buildHabLineEl(code = '', label = '', validity = '') {
+        const wrap = document.createElement('div');
+        wrap.setAttribute('data-hab-line', '');
+        wrap.className = 'grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200';
+        wrap.innerHTML = `
+            <input type="text" data-hab-field="label" list="hab-catalog" value="${label}" placeholder="ex. CACES R489 cat 3 (taper pour suggestions)" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+            <input type="hidden" data-hab-field="code" value="${code}">
+            <input type="date" data-hab-field="validity" value="${validity}" class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+            <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
         `;
+        wrap.querySelectorAll('input').forEach(attachAutoSave);
+        // Auto-fill code quand l'utilisateur choisit un label depuis le datalist
+        const labelInput = wrap.querySelector('[data-hab-field="label"]');
+        const codeInput = wrap.querySelector('[data-hab-field="code"]');
+        labelInput.addEventListener('input', () => {
+            // Cherche un code matchant le label tapé
+            const v = labelInput.value;
+            codeInput.value = '';
+            for (const [c, [lbl]] of Object.entries(HAB_CATALOG)) {
+                if (lbl === v) { codeInput.value = c; break; }
+            }
+        });
+        return wrap;
     }
 
-    window.addHabLine = function() {
-        const container = document.getElementById('hab-table');
-        const idx = container.querySelectorAll('[data-hab-line]').length;
+    /** Construit une carte <salarié> (nom + liste d'habilitations + bouton +) */
+    function buildEmpCardEl(idx) {
         const card = document.createElement('div');
-        card.setAttribute('data-hab-line', '');
-        card.className = 'border border-gray-200 rounded-lg p-3';
-        card.innerHTML = buildHabCardHtml(idx);
-        container.appendChild(card);
+        card.setAttribute('data-emp-card', '');
+        card.className = 'border border-gray-200 rounded-lg p-3 bg-gray-50';
+        card.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-xs font-semibold text-gray-500">Salarié #${idx + 1}</div>
+                <button type="button" onclick="removeEmpCard(this)" class="text-red-500 hover:text-red-700 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5">🗑 Supprimer</button>
+            </div>
+            <input type="text" data-emp-field="nom_prenom" placeholder="Nom Prénom du salarié" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+            <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
+            <div class="space-y-2" data-hab-list></div>
+            <button type="button" onclick="addHabToEmp(this)" class="mt-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-xs hover:bg-white hover:border-salti-yellow transition">+ Ajouter une habilitation</button>
+        `;
+        card.querySelector('[data-hab-list]').appendChild(buildHabLineEl());
         card.querySelectorAll('input').forEach(attachAutoSave);
-        card.querySelector('input').focus();
+        return card;
+    }
+
+    window.addEmpCard = function() {
+        const container = document.getElementById('emp-list');
+        const idx = container.querySelectorAll('[data-emp-card]').length;
+        const card = buildEmpCardEl(idx);
+        container.appendChild(card);
+        card.querySelector('[data-emp-field="nom_prenom"]').focus();
+        // Re-numérote les libellés "Salarié #N"
+        renumberEmpCards();
     };
 
-    window.removeHabLine = function(btn) {
-        const container = document.getElementById('hab-table');
-        const card = btn.closest('[data-hab-line]');
-        if (container.querySelectorAll('[data-hab-line]').length <= 1) {
-            // Garde au moins une ligne — vide les champs
+    window.removeEmpCard = function(btn) {
+        const container = document.getElementById('emp-list');
+        const card = btn.closest('[data-emp-card]');
+        if (container.querySelectorAll('[data-emp-card]').length <= 1) {
             card.querySelectorAll('input').forEach(i => i.value = '');
         } else {
             card.remove();
         }
-        // Re-numérote les data-hab-row pour rester cohérent
-        container.querySelectorAll('[data-hab-line]').forEach((el, i) => {
-            el.querySelectorAll('[data-hab-row]').forEach(input => input.setAttribute('data-hab-row', i));
-        });
+        renumberEmpCards();
         clearTimeout(saveTimer);
         saveTimer = setTimeout(autoSave, 200);
     };
+
+    window.addHabToEmp = function(btn) {
+        const card = btn.closest('[data-emp-card]');
+        const list = card.querySelector('[data-hab-list]');
+        const line = buildHabLineEl();
+        list.appendChild(line);
+        line.querySelector('input').focus();
+    };
+
+    window.removeHabFromEmp = function(btn) {
+        const list = btn.closest('[data-hab-list]');
+        const line = btn.closest('[data-hab-line]');
+        if (list.querySelectorAll('[data-hab-line]').length <= 1) {
+            line.querySelectorAll('input').forEach(i => i.value = '');
+        } else {
+            line.remove();
+        }
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(autoSave, 200);
+    };
+
+    /** Ajoute une habilitation recommandée (depuis l'encadré bleu) au salarié choisi par l'utilisateur. */
+    window.addRecommendedHab = function(code, label) {
+        const cards = document.querySelectorAll('[data-emp-card]');
+        if (cards.length === 0) {
+            alert('Ajoutez d\'abord un salarié avant d\'attribuer une habilitation.');
+            return;
+        }
+        // Construit un prompt rapide listant les salariés
+        const names = Array.from(cards).map((c, i) => {
+            const n = c.querySelector('[data-emp-field="nom_prenom"]').value.trim();
+            return `${i + 1}. ${n || '(sans nom)'}`;
+        });
+        const choice = prompt(`Ajouter "${label}" à quel salarié ?\n\n${names.join('\n')}\n\nTapez le numéro (1, 2, 3…) :`, '1');
+        if (!choice) return;
+        const idx = parseInt(choice, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= cards.length) return;
+        const card = cards[idx];
+        const list = card.querySelector('[data-hab-list]');
+        // Si la 1re ligne est vide, on l'utilise plutôt que d'en ajouter une nouvelle
+        const first = list.querySelector('[data-hab-line]');
+        const target = (first && !first.querySelector('[data-hab-field="label"]').value.trim())
+            ? first
+            : (list.appendChild(buildHabLineEl()));
+        target.querySelector('[data-hab-field="label"]').value = label;
+        target.querySelector('[data-hab-field="code"]').value = code;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(autoSave, 300);
+    };
+
+    function renumberEmpCards() {
+        document.querySelectorAll('[data-emp-card]').forEach((c, i) => {
+            const lbl = c.querySelector('.text-gray-500');
+            if (lbl) lbl.textContent = `Salarié #${i + 1}`;
+        });
+    }
 
     function setDeep(obj, path, value) {
         const parts = path.split('.');
@@ -951,16 +1085,25 @@
             setDeep(data, el.dataset.cbPath, el.checked);
         });
 
-        // 4. Tableau Habilitations (lignes salariés)
-        const habs = {};
-        document.querySelectorAll('[data-hab-row]').forEach(el => {
-            const i = el.dataset.habRow;
-            const f = el.dataset.habField;
-            habs[i] = habs[i] || {};
-            habs[i][f] = el.value;
+        // 4. Salariés et leurs habilitations multiples
+        const intervenants = [];
+        document.querySelectorAll('[data-emp-card]').forEach(card => {
+            const nom = (card.querySelector('[data-emp-field="nom_prenom"]')?.value || '').trim();
+            const habs = [];
+            card.querySelectorAll('[data-hab-line]').forEach(line => {
+                const label = (line.querySelector('[data-hab-field="label"]')?.value || '').trim();
+                if (! label) return;
+                habs.push({
+                    code: line.querySelector('[data-hab-field="code"]')?.value || null,
+                    label,
+                    validity: line.querySelector('[data-hab-field="validity"]')?.value || null,
+                });
+            });
+            if (nom || habs.length) {
+                intervenants.push({ nom_prenom: nom, habilitations: habs });
+            }
         });
-        // On envoie sous data.intervenants (le contrôleur côté serveur le mappera)
-        data.intervenants = Object.values(habs).filter(h => h.nom_prenom || h.habilitation);
+        data.intervenants = intervenants;
 
         // 5. Tableau "Autres risques"
         const autres = {};

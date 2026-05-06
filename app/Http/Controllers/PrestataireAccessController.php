@@ -61,17 +61,49 @@ class PrestataireAccessController extends Controller
         $pdp->save();
 
         // 2) Mise à jour des intervenants (table dédiée)
+        // Format attendu :
+        //   intervenants: [
+        //     { nom_prenom: 'Tony', habilitations: [{ code: 'R489-3', label: '...', validity: 'YYYY-MM-DD' }, ...] },
+        //     ...
+        //   ]
+        // Rétrocompat : si 'habilitation' (string) est présent au lieu de 'habilitations',
+        // on convertit en tableau à 1 élément.
         if (isset($payload['intervenants']) && is_array($payload['intervenants'])) {
             // Stratégie simple : on supprime tout et on recrée. Acceptable car table petite (3-4 lignes max)
             $pdp->intervenants()->delete();
             foreach ($payload['intervenants'] as $iv) {
-                if (empty($iv['nom_prenom']) && empty($iv['habilitation'])) {
+                $habs = [];
+                if (isset($iv['habilitations']) && is_array($iv['habilitations'])) {
+                    foreach ($iv['habilitations'] as $h) {
+                        $label = trim($h['label'] ?? '');
+                        if ($label === '') continue;
+                        $habs[] = [
+                            'code' => $h['code'] ?? null,
+                            'label' => $label,
+                            'validity' => ! empty($h['validity']) ? $h['validity'] : null,
+                        ];
+                    }
+                } elseif (! empty($iv['habilitation'])) {
+                    // rétrocompat
+                    $habs[] = [
+                        'code' => null,
+                        'label' => $iv['habilitation'],
+                        'validity' => ! empty($iv['habilitation_validity']) ? $iv['habilitation_validity'] : null,
+                    ];
+                }
+
+                if (empty($iv['nom_prenom']) && empty($habs)) {
                     continue;
                 }
+
+                // Pour la rétrocompat, on remplit aussi habilitation/habilitation_validity
+                // avec la première habilitation de la liste.
+                $primary = $habs[0] ?? null;
                 $pdp->intervenants()->create([
                     'nom_prenom' => $iv['nom_prenom'] ?? '',
-                    'habilitation' => $iv['habilitation'] ?? null,
-                    'habilitation_validity' => ! empty($iv['habilitation_validity']) ? $iv['habilitation_validity'] : null,
+                    'habilitation' => $primary['label'] ?? null,
+                    'habilitation_validity' => $primary['validity'] ?? null,
+                    'habilitations' => $habs ?: null,
                 ]);
             }
         }

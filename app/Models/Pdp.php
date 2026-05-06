@@ -58,6 +58,103 @@ class Pdp extends Model
         'materiel_atex' => 'Utilisation de matériel spécifique pour travailler en zone ATEX',
     ];
 
+    /**
+     * Catalogue des habilitations BTP / industrie reconnues.
+     * Format : code => [label, category, ref]
+     * Validé avec le QSE — voir SALTI_Habilitations_par_risque.xlsx.
+     */
+    public const HABILITATIONS_LIST = [
+        // CACES — Conduite d'engins
+        'R482-A'    => ['CACES R482 cat. A — Engins compacts',           'CACES', 'R482-A'],
+        'R482-B1'   => ['CACES R482 cat. B1 — Pelles hydrauliques ≥ 6 T','CACES', 'R482-B1'],
+        'R482-C1'   => ['CACES R482 cat. C1 — Chargeuses-pelleteuses',    'CACES', 'R482-C1'],
+        'R482-F'    => ['CACES R482 cat. F — Chariots tout-terrain',      'CACES', 'R482-F'],
+        'R483'      => ['CACES R483 — Grues mobiles',                     'CACES', 'R483'],
+        'R484'      => ['CACES R484 — Ponts roulants',                    'CACES', 'R484'],
+        'R485'      => ['CACES R485 — Gerbeurs accompagnants',            'CACES', 'R485'],
+        'R486-A'    => ['CACES R486 cat. A — PEMP verticale',             'CACES', 'R486-A'],
+        'R486-B'    => ['CACES R486 cat. B — PEMP multidirectionnelle',   'CACES', 'R486-B'],
+        'R487'      => ['CACES R487 — Grues à tour',                      'CACES', 'R487'],
+        'R489-1A'   => ['CACES R489 cat. 1A — Transpalette porté',        'CACES', 'R489-1A'],
+        'R489-3'    => ['CACES R489 cat. 3 — Chariot frontal ≤ 6 T',      'CACES', 'R489-3'],
+        'R489-5'    => ['CACES R489 cat. 5 — Chariot à mât rétractable',  'CACES', 'R489-5'],
+        'R490'      => ['CACES R490 — Grues auxiliaires',                 'CACES', 'R490'],
+        // Travail en hauteur
+        'HARNAIS'   => ['Port du harnais',                                'Hauteur', '—'],
+        'R408'      => ['R408 — Échafaudage roulant',                     'Hauteur', 'R408'],
+        'R457'      => ['R457 — Échafaudage de pied',                     'Hauteur', 'R457'],
+        // Électricité
+        'B0H0'      => ['B0 / H0 — Non électricien',                      'Électricité', 'NF C 18-510'],
+        'B1V'       => ['B1 / B1V — Exécutant BT',                        'Électricité', 'NF C 18-510'],
+        'B2V'       => ['B2 / B2V — Chargé de travaux BT',                'Électricité', 'NF C 18-510'],
+        'BR'        => ['BR — Chargé d\'intervention BT',                 'Électricité', 'NF C 18-510'],
+        'BC'        => ['BC — Chargé de consignation BT',                 'Électricité', 'NF C 18-510'],
+        'BE'        => ['BE Manœuvre',                                    'Électricité', 'NF C 18-510'],
+        'H1V'       => ['H1 / H1V — Exécutant HT',                        'Électricité', 'NF C 18-510'],
+        'H2V'       => ['H2 / H2V — Chargé de travaux HT',                'Électricité', 'NF C 18-510'],
+        'HC'        => ['HC — Chargé de consignation HT',                 'Électricité', 'NF C 18-510'],
+        // Soudure & feu
+        'SOUDAGE'   => ['Habilitation soudage',                           'Soudure', '—'],
+        'PERMIS-FEU'=> ['Permis feu — formation',                         'Soudure', '—'],
+        // Chimique / ATEX / amiante
+        'CHIMIQUE'  => ['Formation produits chimiques',                   'Chimique', 'INRS'],
+        'ATEX-0'    => ['ATEX niveau 0 (sensibilisation)',                'Chimique', 'INRS'],
+        'ATEX-1'    => ['ATEX niveau 1 (exécutant)',                      'Chimique', 'INRS'],
+        'ATEX-2'    => ['ATEX niveau 2 (encadrement)',                    'Chimique', 'INRS'],
+        'SS3'       => ['SS3 — Encapsulage / retrait amiante',            'Amiante', 'R4412-94'],
+        'SS4'       => ['SS4 — Intervention sur matériaux amiantés',      'Amiante', 'R4412-94'],
+        // Secours
+        'SST'       => ['SST — Sauveteur Secouriste du Travail',          'Secours', 'INRS'],
+        'EPI'       => ['EPI — Équipier Première Intervention',           'Secours', '—'],
+        // Hygiène / Postures / Permis / Coordination
+        'SANITAIRE' => ['Procédure sanitaire / EPI',                      'Hygiène', '—'],
+        'PRAP'      => ['PRAP — IBC ou 2S',                               'Postures', 'INRS'],
+        'PERMIS-B'  => ['Permis B (≤ 3,5 T)',                             'Permis', 'Code Route'],
+        'PERMIS-C'  => ['Permis C (> 3,5 T)',                             'Permis', 'Code Route'],
+        'PERMIS-CE' => ['Permis CE (super lourd)',                        'Permis', 'Code Route'],
+        'FIMO'      => ['FIMO / FCO Marchandises',                        'Permis', '—'],
+        'SPS'       => ['Coordination SPS',                               'Coordination', 'R4532'],
+        'ELINGAGE'  => ['Formation élingueur',                            'Élingage', 'R383'],
+        'DECHETS'   => ['Formation gestion déchets',                      'Déchets', '—'],
+    ];
+
+    /**
+     * Mapping risque PDP → habilitations recommandées (codes de HABILITATIONS_LIST).
+     * Utilisé pour suggérer au prestataire les habilitations pertinentes
+     * en fonction des risques cochés par SALTI sur le PDP.
+     */
+    public const HABILITATIONS_BY_RISK = [
+        'arrivee_site'        => [],
+        'circulation_interne' => ['R482-F', 'R489-1A', 'R489-3', 'R489-5', 'PRAP', 'PERMIS-B', 'PERMIS-C', 'PERMIS-CE', 'FIMO'],
+        'stationnement'       => [],
+        'sols_souilles'       => ['CHIMIQUE'],
+        'travail_hauteur'     => ['R486-A', 'R486-B', 'HARNAIS', 'R408', 'R457'],
+        'levage_manutention'  => ['R482-A', 'R482-B1', 'R482-C1', 'R482-F', 'R483', 'R484', 'R485', 'R487', 'R489-1A', 'R489-3', 'R489-5', 'R490', 'PRAP', 'ELINGAGE'],
+        'soudure_decoupe'     => ['SOUDAGE', 'PERMIS-FEU', 'EPI', 'SST'],
+        'dechets'             => ['CHIMIQUE', 'DECHETS'],
+        'electrique'          => ['B0H0', 'B1V', 'B2V', 'BR', 'BC', 'BE', 'H1V', 'H2V', 'HC', 'SST'],
+        'produits_chimiques'  => ['CHIMIQUE', 'ATEX-0', 'ATEX-1', 'ATEX-2', 'SS3', 'SS4', 'DECHETS', 'SST'],
+        'flexibles_engins'    => ['R482-A', 'R482-B1', 'R482-C1'],
+        'multi_interventions' => ['SPS'],
+        'contamination'       => ['SST', 'SANITAIRE'],
+    ];
+
+    /**
+     * Retourne les codes habilitations recommandées pour ce PDP, dédupliqués,
+     * en fonction des risques marqués comme 'applicable' par SALTI.
+     */
+    public function recommendedHabilitations(): array
+    {
+        $risques = $this->data['risques'] ?? [];
+        $codes = [];
+        foreach (self::HABILITATIONS_BY_RISK as $slug => $habCodes) {
+            if (! empty($risques[$slug]['applicable'])) {
+                $codes = array_merge($codes, $habCodes);
+            }
+        }
+        return array_values(array_unique($codes));
+    }
+
     protected $fillable = [
         'uuid',
         'agency_id',

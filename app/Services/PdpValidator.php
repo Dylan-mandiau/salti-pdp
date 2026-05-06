@@ -270,46 +270,129 @@ class PdpValidator
         $risques = $data['risques'] ?? [];
         $intervenants = $pdp->intervenants ?? collect();
 
+        // Récolte tous les codes + labels d'habilitations détenus par les
+        // intervenants (depuis habilitations_list qui gère la rétrocompat
+        // avec l'ancien champ texte habilitation).
+        $codesHeld = [];
+        $labelsHeld = '';
+        foreach ($intervenants as $iv) {
+            foreach ($iv->habilitations_list as $h) {
+                if (! empty($h['code'])) $codesHeld[] = $h['code'];
+                if (! empty($h['label'])) $labelsHeld .= ' '.$h['label'];
+            }
+        }
+        $codesHeld = array_unique($codesHeld);
+
+        /**
+         * Vérifie si l'EE possède au moins une habilitation dans la liste
+         * des codes attendus, OU si le label libre matche le regex de fallback.
+         */
+        $eeHasOneOf = function (array $expectedCodes, string $fallbackRegex) use ($codesHeld, $labelsHeld): bool {
+            if (! empty(array_intersect($expectedCodes, $codesHeld))) return true;
+            return (bool) preg_match($fallbackRegex, $labelsHeld);
+        };
+
         // ━━ HABILITATIONS OBLIGATOIRES (erreurs bloquantes) ━━
 
         // Risque électrique → habilitation B0/B1V/H0V/H2B2/HCBC/BR OBLIGATOIRE
         // (Art. R4544-9 Code du travail + Norme NF C 18-510)
         if (! empty($risques['electrique']['applicable'])) {
-            $hasHabilitationElec = $intervenants->contains(function ($iv) {
-                return preg_match('/(B0|B1V|B2|BR|BC|H0V|H1V|H2B2|HCBC)/i', (string)($iv->habilitation ?? ''));
-            });
-            if (! $hasHabilitationElec) {
-                $this->error(null, '⚡ Risque électrique déclaré → Habilitation électrique OBLIGATOIRE (B0/B1V/B2/BR/H0V/H2B2/HCBC) — aucun salarié EE habilité enregistré (Art. R4544-9 Code du travail).', 5);
+            $ok = $eeHasOneOf(
+                ['B0H0', 'B1V', 'B2V', 'BR', 'BC', 'BE', 'H1V', 'H2V', 'HC'],
+                '/(B0|B1V?|B2V?|BR|BC|BE|H0V?|H1V?|H2(B2)?|HC(BC)?)\b/i'
+            );
+            if (! $ok) {
+                $this->error(null, '⚡ Risque électrique déclaré → Habilitation électrique OBLIGATOIRE (B0/B1V/B2V/BR/BC/H1V/H2V/HC) — aucun salarié EE habilité enregistré (Art. R4544-9 Code du travail).', 5);
             }
         }
 
-        // Levage / manutention → CACES R486 ou R489 OBLIGATOIRE (Art. R4323-55)
+        // Levage / manutention → CACES OBLIGATOIRE (Art. R4323-55)
         if (! empty($risques['levage_manutention']['applicable'])) {
-            $hasCaces = $intervenants->contains(function ($iv) {
-                return preg_match('/(CACES|R489|R486|R485|R482)/i', (string)($iv->habilitation ?? ''));
-            });
-            if (! $hasCaces) {
-                $this->error(null, '🏗 Levage/manutention déclaré → CACES OBLIGATOIRE (R486 nacelle / R489 chariot) — aucun CACES enregistré chez l\'EE (Art. R4323-55).', 5);
+            $ok = $eeHasOneOf(
+                ['R489-1A', 'R489-3', 'R489-5', 'R486-A', 'R486-B', 'R485', 'R484', 'R483', 'R487', 'R490', 'R482-A', 'R482-B1', 'R482-C1', 'R482-F', 'ELINGAGE'],
+                '/(CACES|R48[2-7]|R489|R490|élingage|elingueur)/i'
+            );
+            if (! $ok) {
+                $this->error(null, '🏗 Levage/manutention déclaré → CACES OBLIGATOIRE (R486/R489/R484/R483/R487/R490) — aucun CACES enregistré chez l\'EE (Art. R4323-55).', 5);
             }
         }
 
-        // Travail en hauteur (nacelle) → CACES R486 OBLIGATOIRE
+        // Travail en hauteur → CACES R486 / Harnais / Échafaudages OBLIGATOIRE
         if (! empty($risques['travail_hauteur']['applicable'])) {
-            $hasCacesNacelle = $intervenants->contains(function ($iv) {
-                return preg_match('/(R486|nacelle|PEMP|CACES)/i', (string)($iv->habilitation ?? ''));
-            });
-            if (! $hasCacesNacelle) {
-                $this->error(null, '🪜 Travail en hauteur (nacelle) déclaré → CACES R486 (PEMP) OBLIGATOIRE — aucun CACES nacelle enregistré chez l\'EE.', 5);
+            $ok = $eeHasOneOf(
+                ['R486-A', 'R486-B', 'HARNAIS', 'R408', 'R457'],
+                '/(R486|nacelle|PEMP|harnais|R408|R457|échafaudage)/i'
+            );
+            if (! $ok) {
+                $this->error(null, '🪜 Travail en hauteur déclaré → CACES R486 (PEMP) ou Port du harnais / R408 / R457 OBLIGATOIRE — aucune habilitation hauteur enregistrée chez l\'EE.', 5);
             }
         }
 
-        // Soudure → qualification soudeur recommandée (warning seulement)
+        // Permis feu coché par SALTI → habilitation soudage ou « Permis feu » OBLIGATOIRE
+        if (! empty($data['documents_remis_ee']['permis_feu'])) {
+            $ok = $eeHasOneOf(
+                ['SOUDAGE', 'PERMIS-FEU'],
+                '/(soud|EN ?287|ISO ?9606|TIG|MIG|MAG|permis feu)/i'
+            );
+            if (! $ok) {
+                $this->error(null, '🔥 Permis feu requis → Habilitation soudage ou formation Permis feu OBLIGATOIRE pour au moins un salarié EE.', 5);
+            }
+        }
+
+        // ━━ HABILITATIONS RECOMMANDÉES (warnings non bloquants) ━━
+
+        // Soudure / découpe déclarée → qualification soudeur recommandée
         if (! empty($risques['soudure_decoupe']['applicable'])) {
-            $hasSoudureCert = $intervenants->contains(function ($iv) {
-                return preg_match('/(soud|EN ?287|ISO ?9606|TIG|MIG|MAG)/i', (string)($iv->habilitation ?? ''));
-            });
-            if (! $hasSoudureCert) {
+            $ok = $eeHasOneOf(
+                ['SOUDAGE'],
+                '/(soud|EN ?287|ISO ?9606|TIG|MIG|MAG)/i'
+            );
+            if (! $ok) {
                 $this->warning(null, '🔥 Soudure/découpe déclarée → Recommandé : qualification soudeur (EN 287 / ISO 9606) chez l\'EE.', 5);
+            }
+        }
+
+        // Produits chimiques → formation produits chimiques + ATEX recommandés
+        if (! empty($risques['produits_chimiques']['applicable'])) {
+            $ok = $eeHasOneOf(
+                ['CHIMIQUE', 'ATEX-0', 'ATEX-1', 'ATEX-2', 'SS3', 'SS4'],
+                '/(produits chimiques|ATEX|amiante|SS3|SS4)/i'
+            );
+            if (! $ok) {
+                $this->warning(null, '🧪 Produits chimiques dangereux → Recommandé : Formation produits chimiques ou ATEX chez l\'EE.', 5);
+            }
+        }
+
+        // Multi-interventions → Coordination SPS recommandée
+        if (! empty($risques['multi_interventions']['applicable'])) {
+            $ok = $eeHasOneOf(
+                ['SPS'],
+                '/(coordination SPS|SPS)/i'
+            );
+            if (! $ok) {
+                $this->warning(null, '🤝 Multi-interventions déclarées → Recommandé : un coordonnateur SPS chez l\'EE.', 5);
+            }
+        }
+
+        // Circulation interne → permis B/C recommandé si véhicule lourd attendu
+        if (! empty($risques['circulation_interne']['applicable'])) {
+            $ok = $eeHasOneOf(
+                ['PERMIS-B', 'PERMIS-C', 'PERMIS-CE', 'FIMO'],
+                '/(permis [BC]|FIMO|FCO)/i'
+            );
+            if (! $ok) {
+                $this->warning(null, '🚛 Circulation interne → Recommandé : permis B/C/CE adapté au véhicule chez l\'EE.', 5);
+            }
+        }
+
+        // Contamination → SST recommandé
+        if (! empty($risques['contamination']['applicable'])) {
+            $ok = $eeHasOneOf(
+                ['SST', 'SANITAIRE'],
+                '/(SST|sauveteur|sanitaire)/i'
+            );
+            if (! $ok) {
+                $this->warning(null, '🦠 Risque contamination → Recommandé : SST (Sauveteur Secouriste du Travail) chez l\'EE.', 5);
             }
         }
 
@@ -319,8 +402,17 @@ class PdpValidator
             try {
                 $debut = Carbon::parse($data['operation']['date_debut']);
                 foreach ($intervenants as $iv) {
-                    if ($iv->habilitation_validity && $iv->habilitation_validity->lt($debut)) {
-                        $this->error(null, "🚫 Habilitation EXPIRÉE pour {$iv->nom_prenom} ({$iv->habilitation}) — validité jusqu'au {$iv->habilitation_validity->format('d/m/Y')}, intervention prévue le {$debut->format('d/m/Y')}.", 5);
+                    foreach ($iv->habilitations_list as $h) {
+                        if (! empty($h['validity'])) {
+                            try {
+                                $exp = Carbon::parse($h['validity']);
+                                if ($exp->lt($debut)) {
+                                    $this->error(null, "🚫 Habilitation EXPIRÉE pour {$iv->nom_prenom} ({$h['label']}) — validité jusqu'au {$exp->format('d/m/Y')}, intervention prévue le {$debut->format('d/m/Y')}.", 5);
+                                }
+                            } catch (\Exception $e) {
+                                // ignore date format invalide
+                            }
+                        }
                     }
                 }
             } catch (\Exception $e) {

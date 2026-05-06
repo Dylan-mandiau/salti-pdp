@@ -17,6 +17,7 @@ class PdpIntervenant extends Model
         'signature_data',
         'habilitation',
         'habilitation_validity',
+        'habilitations',
     ];
 
     protected function casts(): array
@@ -24,11 +25,38 @@ class PdpIntervenant extends Model
         return [
             'date_signature' => 'date',
             'habilitation_validity' => 'date',
+            'habilitations' => 'array',
         ];
     }
 
     public function pdp(): BelongsTo
     {
         return $this->belongsTo(Pdp::class);
+    }
+
+    /**
+     * Liste normalisée des habilitations du salarié.
+     * Rétrocompat : si habilitations (JSON) est null mais habilitation
+     * (string) est rempli, on retourne une liste à 1 élément.
+     *
+     * @return array<int, array{code: string|null, label: string, validity: string|null}>
+     */
+    public function getHabilitationsListAttribute(): array
+    {
+        if (! empty($this->habilitations) && is_array($this->habilitations)) {
+            return collect($this->habilitations)->map(fn($h) => [
+                'code' => $h['code'] ?? null,
+                'label' => $h['label'] ?? '',
+                'validity' => $h['validity'] ?? null,
+            ])->filter(fn($h) => ! empty($h['label']))->values()->all();
+        }
+        if (! empty($this->habilitation)) {
+            return [[
+                'code' => null,
+                'label' => $this->habilitation,
+                'validity' => $this->habilitation_validity?->format('Y-m-d'),
+            ]];
+        }
+        return [];
     }
 }

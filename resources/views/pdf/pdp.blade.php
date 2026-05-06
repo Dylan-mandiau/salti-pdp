@@ -568,7 +568,7 @@
         @endforeach
     </table>
 
-    {{-- Habilitations --}}
+    {{-- Habilitations — 1 ligne par habilitation (un salarié peut en avoir plusieurs) --}}
     <table class="bordered" style="margin-top:10px">
         <tr><th colspan="3" class="title-yellow">Autorisations de conduite et habilitations que doivent posséder les salariés de l'entreprise extérieure</th></tr>
         <tr>
@@ -576,17 +576,31 @@
             <th style="width:35%; background:#FFC000">Habilitation / CACES*</th>
             <th style="width:25%; background:#FFC000">Date de validité</th>
         </tr>
-        @php $habs = $intervenants->whereNotNull('habilitation')->take(3); $i = 0; @endphp
-        @foreach($habs as $iv)
-            @php $i++; @endphp
-            <tr style="height:30px">
-                <td>{{ $iv->nom_prenom }}</td>
-                <td>{{ $iv->habilitation }}</td>
-                <td>{{ $iv->habilitation_validity ? $iv->habilitation_validity->format('d/m/Y') : '' }}</td>
+        @php
+            // Aplatit (intervenant × habilitations) en lignes plates :
+            // Tony — CACES R489 — 15/06/2027
+            // Tony — B2V         — 30/09/2027
+            // Karim — Harnais    — 01/03/2028
+            $rows = [];
+            foreach ($intervenants as $iv) {
+                foreach ($iv->habilitations_list as $h) {
+                    $rows[] = [
+                        'nom' => $iv->nom_prenom,
+                        'label' => $h['label'],
+                        'validity' => $h['validity'],
+                    ];
+                }
+            }
+        @endphp
+        @foreach($rows as $r)
+            <tr style="height:24px">
+                <td>{{ $r['nom'] }}</td>
+                <td>{{ $r['label'] }}</td>
+                <td>{{ $r['validity'] ? \Carbon\Carbon::parse($r['validity'])->format('d/m/Y') : '' }}</td>
             </tr>
         @endforeach
-        @for($j = $i; $j < 3; $j++)
-            <tr style="height:30px"><td></td><td></td><td></td></tr>
+        @for($j = count($rows); $j < 3; $j++)
+            <tr style="height:24px"><td></td><td></td><td></td></tr>
         @endfor
     </table>
 
