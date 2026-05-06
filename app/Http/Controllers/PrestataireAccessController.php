@@ -148,71 +148,86 @@ class PrestataireAccessController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function downloadDocument(string $token, int $docId)
+    public function downloadDocument(string $token, int $docId, Request $request)
     {
         $pdp = $this->resolveToken($token);
         $doc = $pdp->documents()->where('id', $docId)->first();
         if (! $doc) abort(404);
-        return response()->download(storage_path('app/'.$doc->path), $doc->original_filename);
+        return $this->fileResponse(storage_path('app/'.$doc->path), $doc->original_filename, $request);
     }
 
     /**
-     * Télécharge le Permis feu pré-rempli pour ce PDP.
+     * Télécharge / Affiche le Permis feu pré-rempli pour ce PDP.
      * Régénéré à la volée pour avoir toujours la dernière version.
      */
-    public function downloadPermisFeu(string $token, \App\Services\AnnexDocumentsGenerator $gen)
+    public function downloadPermisFeu(string $token, Request $request, \App\Services\AnnexDocumentsGenerator $gen)
     {
         $pdp = $this->resolveToken($token);
         $relativePath = $gen->generatePermisFeu($pdp);
-        return response()->download(storage_path('app/'.$relativePath), 'permis-feu-'.$pdp->uuid.'.pdf');
+        return $this->fileResponse(storage_path('app/'.$relativePath), 'permis-feu-'.$pdp->uuid.'.pdf', $request);
     }
 
     /**
-     * Télécharge la Convention de prêt pré-remplie.
+     * Télécharge / Affiche la Convention de prêt pré-remplie.
      */
-    public function downloadConventionPret(string $token, \App\Services\AnnexDocumentsGenerator $gen)
+    public function downloadConventionPret(string $token, Request $request, \App\Services\AnnexDocumentsGenerator $gen)
     {
         $pdp = $this->resolveToken($token);
         $relativePath = $gen->generateConventionPret($pdp);
-        return response()->download(storage_path('app/'.$relativePath), 'convention-pret-'.$pdp->uuid.'.pdf');
+        return $this->fileResponse(storage_path('app/'.$relativePath), 'convention-pret-'.$pdp->uuid.'.pdf', $request);
     }
 
     /**
-     * Télécharge le Plan d'accès de l'agence (s'il existe).
+     * Télécharge / Affiche le Plan d'accès de l'agence (s'il existe).
      */
-    public function downloadPlanAcces(string $token)
+    public function downloadPlanAcces(string $token, Request $request)
     {
         $pdp = $this->resolveToken($token);
         if (! $pdp->agency?->access_plan_path) abort(404);
-        return response()->download(
+        return $this->fileResponse(
             storage_path('app/'.$pdp->agency->access_plan_path),
-            $pdp->agency->access_plan_filename ?? 'plan-acces.pdf'
+            $pdp->agency->access_plan_filename ?? 'plan-acces.pdf',
+            $request
         );
     }
 
     /**
-     * Télécharge le PDP principal (le PDF généré).
-     *
-     * AVANT signature presta → mode preview (inline) : permet la consultation
-     * obligatoire avant signature, mais bloque le téléchargement du document
-     * non finalisé.
-     * APRÈS signature presta → téléchargement (attachment).
+     * Helper : retourne un fichier en mode preview (inline) si ?inline=1, sinon en download.
      */
-    public function downloadMainPdp(string $token, \App\Services\PdpHtmlPdfGenerator $gen)
+    private function fileResponse(string $absolutePath, string $filename, Request $request)
+    {
+        if ($request->boolean('inline')) {
+            return response()->file($absolutePath, [
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            ]);
+        }
+        return response()->download($absolutePath, $filename);
+    }
+
+    /**
+     * Télécharge / Affiche le PDP principal (le PDF généré).
+     *
+     * Règle de sécurité : le téléchargement (attachment) du PDP n'est autorisé
+     * qu'APRÈS la signature du prestataire — un document non signé n'a pas
+     * vocation à être archivé tel quel. La consultation (?inline=1) reste
+     * toujours possible pour respecter l'obligation de consultation préalable.
+     */
+    public function downloadMainPdp(string $token, Request $request, \App\Services\PdpHtmlPdfGenerator $gen)
     {
         $pdp = $this->resolveToken($token);
         $relativePath = $gen->generate($pdp);
         $absolutePath = storage_path('app/'.$relativePath);
+        $filename = 'plan-prevention-'.$pdp->uuid.'.pdf';
 
+        // Avant signature presta : forcer le mode preview, jamais de download
         if (! $pdp->signed_by_prestataire_at) {
-            // Preview only : pas de download tant que pas signé
             return response()->file($absolutePath, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="plan-prevention-preview.pdf"',
             ]);
         }
 
-        return response()->download($absolutePath, 'plan-prevention-'.$pdp->uuid.'.pdf');
+        return $this->fileResponse($absolutePath, $filename, $request);
     }
 
     /**

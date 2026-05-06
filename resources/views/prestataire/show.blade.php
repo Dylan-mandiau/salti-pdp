@@ -181,8 +181,9 @@
                                                 </div>
                                             </div>
                                             <div class="flex gap-2 shrink-0">
-                                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-xs text-blue-600 hover:underline">Voir</a>
-                                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-xs text-red-600 hover:underline">Supprimer</button>
+                                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}?inline=1" target="_blank" class="text-xs text-blue-600 hover:underline" title="Consulter">👁</a>
+                                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-xs text-blue-600 hover:underline" title="Télécharger">📥</a>
+                                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-xs text-red-600 hover:underline" title="Supprimer">🗑</button>
                                             </div>
                                         </div>
                                     @endforeach
@@ -225,8 +226,9 @@
                                 </div>
                             </div>
                             <div class="flex gap-2 shrink-0">
-                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-sm text-blue-600 hover:underline">Voir</a>
-                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-sm text-red-600 hover:underline">Supprimer</button>
+                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}?inline=1" target="_blank" class="text-sm text-blue-600 hover:underline" title="Consulter">👁 <span class="hidden sm:inline">Consulter</span></a>
+                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-sm text-blue-600 hover:underline" title="Télécharger">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-sm text-red-600 hover:underline" title="Supprimer">🗑</button>
                             </div>
                         </div>
                     @endforeach
@@ -642,14 +644,16 @@
                                 </div>
                             </div>
                         </div>
-                        <a href="{{ route('prestataire.download-main-pdp', $token) }}" target="_blank"
-                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
+                        <div class="flex gap-1.5 flex-shrink-0">
+                            <a href="{{ route('prestataire.download-main-pdp', $token) }}?inline=1" target="_blank"
+                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap"
+                               title="Consulter dans un nouvel onglet">👁 <span class="hidden sm:inline">Consulter</span></a>
                             @if($pdp->signed_by_prestataire_at)
-                                📥 Télécharger
-                            @else
-                                👁 Consulter
+                                <a href="{{ route('prestataire.download-main-pdp', $token) }}"
+                                   class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Télécharger">📥 <span class="hidden sm:inline">Télécharger</span></a>
                             @endif
-                        </a>
+                        </div>
                     </li>
 
                     {{-- Plan d'accès agence --}}
@@ -662,10 +666,14 @@
                                     <div class="text-xs text-gray-500">Agence {{ $pdp->agency->city ?? $pdp->agency->name }}</div>
                                 </div>
                             </div>
-                            <a href="{{ route('prestataire.download-plan-acces', $token) }}" target="_blank"
-                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
-                                📥 Télécharger
-                            </a>
+                            <div class="flex gap-1.5 flex-shrink-0">
+                                <a href="{{ route('prestataire.download-plan-acces', $token) }}?inline=1" target="_blank"
+                                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Consulter">👁 <span class="hidden sm:inline">Consulter</span></a>
+                                <a href="{{ route('prestataire.download-plan-acces', $token) }}"
+                                   class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Télécharger">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                            </div>
                         </li>
                     @endif
 
@@ -679,10 +687,14 @@
                                     <div class="text-xs text-gray-500">Pré-rempli — formulaire PR0103-bis</div>
                                 </div>
                             </div>
-                            <a href="{{ route('prestataire.download-permis-feu', $token) }}" target="_blank"
-                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
-                                📥 Télécharger
-                            </a>
+                            <div class="flex gap-1.5 flex-shrink-0">
+                                <a href="{{ route('prestataire.download-permis-feu', $token) }}?inline=1" target="_blank"
+                                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Consulter">👁 <span class="hidden sm:inline">Consulter</span></a>
+                                <a href="{{ route('prestataire.download-permis-feu', $token) }}"
+                                   class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Télécharger">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                            </div>
                         </li>
                     @endif
 
@@ -696,10 +708,14 @@
                                     <div class="text-xs text-gray-500">Pré-remplie — formulaire PR0102</div>
                                 </div>
                             </div>
-                            <a href="{{ route('prestataire.download-convention-pret', $token) }}" target="_blank"
-                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
-                                📥 Télécharger
-                            </a>
+                            <div class="flex gap-1.5 flex-shrink-0">
+                                <a href="{{ route('prestataire.download-convention-pret', $token) }}?inline=1" target="_blank"
+                                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Consulter">👁 <span class="hidden sm:inline">Consulter</span></a>
+                                <a href="{{ route('prestataire.download-convention-pret', $token) }}"
+                                   class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap"
+                                   title="Télécharger">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                            </div>
                         </li>
                     @endif
                 </ul>
