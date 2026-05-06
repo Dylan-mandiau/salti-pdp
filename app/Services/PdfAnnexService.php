@@ -24,6 +24,8 @@ use setasign\Fpdi\Tcpdf\Fpdi;
  */
 class PdfAnnexService
 {
+    public function __construct(private AnnexDocumentsGenerator $docsGenerator) {}
+
     /**
      * Liste les annexes à attacher en fonction de l'état du PDP.
      * @return array<int, array{path: string, label: string, type: string}>
@@ -42,24 +44,28 @@ class PdfAnnexService
             ];
         }
 
-        // 2. Permis feu — global, si la case est cochée
-        $permisFeuPath = AppSetting::get('permis_feu_path');
-        if (! empty($data['documents_remis_ee']['permis_feu']) && $permisFeuPath) {
+        // 2. Permis feu pré-rempli (généré dynamiquement) si case cochée
+        if (! empty($data['documents_remis_ee']['permis_feu'])) {
+            $path = $this->docsGenerator->generatePermisFeu($pdp);
             $annexes[] = [
-                'path' => storage_path('app/'.$permisFeuPath),
-                'label' => 'Permis feu',
-                'type' => 'global',
+                'path' => storage_path('app/'.$path),
+                'label' => 'Permis feu — pré-rempli',
+                'type' => 'generated',
             ];
         }
 
-        // 3. Convention de prêt — global, si la case est cochée
-        $conventionPath = AppSetting::get('convention_pret_path');
-        if (! empty($data['documents_remis_ee']['convention_pret']) && $conventionPath) {
-            $annexes[] = [
-                'path' => storage_path('app/'.$conventionPath),
-                'label' => 'Convention de prêt de matériel',
-                'type' => 'global',
-            ];
+        // 3. Convention de prêt pré-remplie (générée) si case cochée + matériels listés
+        if (! empty($data['documents_remis_ee']['convention_pret'])) {
+            $hasMateriels = collect($data['materiels_pretes'] ?? [])
+                ->filter(fn($m) => ! empty($m['designation']))->isNotEmpty();
+            if ($hasMateriels) {
+                $path = $this->docsGenerator->generateConventionPret($pdp);
+                $annexes[] = [
+                    'path' => storage_path('app/'.$path),
+                    'label' => 'Convention de prêt de matériel — pré-remplie',
+                    'type' => 'generated',
+                ];
+            }
         }
 
         // 4. Tous les fichiers uploadés par le prestataire (CACES, habilitations, autres)

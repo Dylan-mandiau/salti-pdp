@@ -67,8 +67,14 @@ class PdpTestGenerate extends Command
 
         $data['documents_remis_ee']['plan_acces'] = true;
         $data['documents_remis_ee']['permis_feu'] = true;
+        $data['documents_remis_ee']['convention_pret'] = true;
         $data['documents_remis_salti']['caces'] = true;
         $data['documents_remis_salti']['habilitations'] = true;
+        $data['materiels_pretes'] = [
+            ['designation' => 'Mini-pelle 2 tonnes'],
+            ['designation' => 'Échafaudage roulant 6m'],
+        ];
+        $data['ee']['siret'] = '12345678900012';
 
         $data['secours']['sst_nom'] = 'Pierre MARTIN';
         $data['secours']['sst_fonction'] = 'Chef d\'atelier';

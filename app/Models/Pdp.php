@@ -214,6 +214,40 @@ class Pdp extends Model
             'signature_ee' => null,
             'signature_salti_fonction' => null,
             'signature_ee_fonction' => null,
+            // Matériels prêtés (si Convention cochée)
+            'materiels_pretes' => [],
+            // Permis feu (rempli par le prestataire, soit en ligne soit imprimé/scanné)
+            'permis_feu' => [
+                'mode_remplissage' => null,    // 'online' | 'paper'
+                'mode_operatoire' => null,
+                'operateurs_autorises' => null,
+                'travaux' => [
+                    'soudage' => false, 'tronconnage' => false,
+                    'decoupage' => false, 'meulage' => false, 'autre' => null,
+                ],
+                'materiels' => [
+                    'poste_souder' => false, 'chalumeau' => false,
+                    'laser' => false, 'tronconneuse' => false, 'autre' => null,
+                ],
+                'risques_particuliers' => null,
+                'zone_atex_presence' => false,
+                'zone_atex_proximite' => false,
+                'zone_atex_details' => null,
+                'documents_associes' => [
+                    'autorisation_travail' => false, 'permis_penetrer' => false,
+                    'drpce' => false, 'certificat_degazage' => false,
+                ],
+                'surveillance_pendant' => null,
+                'surveillance_apres_de' => null,
+                'surveillance_apres_a' => null,
+                'surveillance_apres_nom' => null,
+                'alerte_emplacement' => null,
+                'pompiers_tel' => '18',
+                'contact_accident_nom' => null,
+                'contact_accident_tel' => null,
+                'date_delivrance' => null,
+                'signed_by_employer' => null, // dataURL PNG
+            ],
         ];
     }
 }
