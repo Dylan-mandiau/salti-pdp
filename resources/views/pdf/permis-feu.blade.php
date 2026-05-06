@@ -289,10 +289,25 @@
     </tbody>
 </table>
 
-<p style="margin-top:10px">Permis de feu délivré le : <span class="filled">{{ $date($pf['date_delivrance'] ?? null) }}</span></p>
+@php
+    // Fallback robuste : si la date de délivrance ou la signature de l'employeur
+    // n'ont pas été stockées dans permis_feu (cas des PDP déjà signés avant
+    // l'auto-sync), on utilise directement la signature et la date du PDP.
+    // Le signataire EE du PDP fait office de "représentant de l'employeur"
+    // pour le permis feu — c'est la même personne dans le workflow standard.
+    $effectiveDeliveryDate = $pf['date_delivrance'] ?? null;
+    if (! $effectiveDeliveryDate && $pdp->signed_by_prestataire_at) {
+        $effectiveDeliveryDate = $pdp->signed_by_prestataire_at->toDateString();
+    }
+    $effectiveSignature = $pf['signed_by_employer'] ?? null;
+    if (! $effectiveSignature && ! empty($data['signature_ee'])) {
+        $effectiveSignature = $data['signature_ee'];
+    }
+@endphp
+<p style="margin-top:10px">Permis de feu délivré le : <span class="filled">{{ $date($effectiveDeliveryDate) }}</span></p>
 <p style="margin-top:6px">Signature de l'employeur ou de son représentant qualifié :</p>
-@if(! empty($pf['signed_by_employer']))
-    <img src="{{ $pf['signed_by_employer'] }}" style="max-height:60px;margin-top:4px">
+@if(! empty($effectiveSignature))
+    <img src="{{ $effectiveSignature }}" style="max-height:60px;margin-top:4px">
 @endif
 
 </body>
