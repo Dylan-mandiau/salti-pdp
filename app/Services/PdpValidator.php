@@ -318,13 +318,23 @@ class PdpValidator
         }
 
         // Travail en hauteur → CACES R486 / Harnais / Échafaudages OBLIGATOIRE
+        // Distinction importante : l'EPI 'harnais' coché à l'étape 3 ne suffit pas —
+        // il faut AUSSI une habilitation/formation au port du harnais pour au moins
+        // un salarié EE (Art. R4323-106 Code du travail).
         if (! empty($risques['travail_hauteur']['applicable'])) {
             $ok = $eeHasOneOf(
                 ['R486-A', 'R486-B', 'HARNAIS', 'R408', 'R457'],
                 '/(R486|nacelle|PEMP|harnais|R408|R457|échafaudage)/i'
             );
             if (! $ok) {
-                $this->error(null, '🪜 Travail en hauteur déclaré → CACES R486 (PEMP) ou Port du harnais / R408 / R457 OBLIGATOIRE — aucune habilitation hauteur enregistrée chez l\'EE.', 5);
+                $epiHarnaisCoche = ! empty($data['epi']['harnais']);
+                $msg = '🪜 Travail en hauteur déclaré → habilitation OBLIGATOIRE chez l\'EE : '
+                     .'CACES R486 (PEMP), formation Port du harnais, ou montage d\'échafaudage (R408/R457). '
+                     .'Aucun salarié EE n\'a d\'habilitation hauteur enregistrée à l\'étape 5.';
+                if ($epiHarnaisCoche) {
+                    $msg .= ' (l\'EPI « harnais » est coché à l\'étape 3, mais l\'EPI ne remplace pas l\'habilitation au port du harnais — Art. R4323-106).';
+                }
+                $this->error(null, $msg, 5);
             }
         }
 

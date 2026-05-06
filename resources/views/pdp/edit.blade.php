@@ -523,6 +523,60 @@
                     ])
                 </div>
             @endif
+
+            {{-- ═══════════════════════════════════════════════════════════
+                 Documents joints — uploads côté SALTI (présentiel / correction)
+                 ═══════════════════════════════════════════════════════════ --}}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 mt-6">
+                <h2 class="font-semibold mb-2">📎 Documents joints au PDP</h2>
+                <p class="text-sm text-gray-600 mb-4">
+                    Uploadez ici les CACES, autorisations de conduite, habilitations, FDS, photos,
+                    permis feu papier scanné, etc. Cette section est utile en présentiel (SALTI tient
+                    la tablette) ou pour corriger / compléter en distance ce que le presta a transmis.
+                </p>
+
+                @php $allDocs = $pdp->documents()->orderBy('uploaded_by')->orderBy('type')->get(); @endphp
+
+                {{-- Dropzone unique générique — type sélectionné juste avant l'upload --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Catégorie du document</label>
+                        <select id="salti-upload-type" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                            <option value="caces">CACES</option>
+                            <option value="autorisation_conduite">Autorisation de conduite</option>
+                            <option value="habilitation">Habilitation</option>
+                            <option value="permis_feu">Permis feu (papier scanné)</option>
+                            <option value="fds">FDS / Fiche de sécurité</option>
+                            <option value="plan_acces">Plan d'accès</option>
+                            <option value="convention_pret">Convention de prêt</option>
+                            <option value="autre" selected>Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Libellé (facultatif)</label>
+                        <input type="text" id="salti-upload-label" placeholder="ex. Caces R489 cat 3 — Tony"
+                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div id="salti-dropzone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-salti-yellow hover:bg-salti-yellow/5 transition">
+                    <div class="text-3xl mb-2">📂</div>
+                    <div class="text-sm font-medium text-gray-700 mb-1">
+                        <span class="text-salti-yellow-dark underline">Cliquer pour choisir</span> ou glissez vos fichiers ici
+                    </div>
+                    <div class="text-xs text-gray-500">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</div>
+                    <input type="file" id="salti-upload-input" multiple class="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                </div>
+
+                {{-- Liste des documents existants (presta + SALTI) --}}
+                <div class="mt-4 space-y-2" id="salti-files-list">
+                    @forelse($allDocs as $doc)
+                        @include('pdp.partials.salti-doc-row', ['doc' => $doc, 'pdp' => $pdp])
+                    @empty
+                        <p class="text-sm text-gray-500 italic" data-empty-state>Aucun document pour le moment.</p>
+                    @endforelse
+                </div>
+            </div>
         @endif
 
         {{-- ════════════════════════════════════════════════════════════════
@@ -1250,6 +1304,107 @@
         container.appendChild(card);
         card.querySelector('[data-iv-field="nom_prenom"]')?.focus();
     };
+
+    // ─── Upload de documents côté SALTI (étape 5) ─────────────────────────
+    (function() {
+        const dz = document.getElementById('salti-dropzone');
+        const input = document.getElementById('salti-upload-input');
+        const typeSelect = document.getElementById('salti-upload-type');
+        const labelInput = document.getElementById('salti-upload-label');
+        const filesList = document.getElementById('salti-files-list');
+        if (! dz || ! input) return;
+
+        dz.addEventListener('click', () => input.click());
+        dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-salti-yellow', 'bg-salti-yellow/10'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('border-salti-yellow', 'bg-salti-yellow/10'));
+        dz.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dz.classList.remove('border-salti-yellow', 'bg-salti-yellow/10');
+            for (const file of e.dataTransfer.files) saltiUploadFile(file);
+        });
+        input.addEventListener('change', () => {
+            for (const file of input.files) saltiUploadFile(file);
+            input.value = '';
+        });
+
+        async function saltiUploadFile(file) {
+            if (file.size > 10 * 1024 * 1024) { alert(`Le fichier "${file.name}" dépasse 10 Mo.`); return; }
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('type', typeSelect?.value || 'autre');
+            fd.append('label', labelInput?.value || file.name);
+
+            const tempLine = document.createElement('div');
+            tempLine.className = 'flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs';
+            tempLine.innerHTML = `<span>⏳</span><span>Upload en cours : ${file.name}</span>`;
+            filesList.appendChild(tempLine);
+            // Retire l'état 'aucun document'
+            filesList.querySelector('[data-empty-state]')?.remove();
+
+            try {
+                const r = await fetch(`/pdp/${PDP_ID}/document`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                    body: fd,
+                });
+                const d = await r.json();
+                tempLine.remove();
+                if (! r.ok || d.error) {
+                    alert('Erreur upload : ' + (d.error || r.statusText));
+                    return;
+                }
+                // Construit la ligne
+                const line = document.createElement('div');
+                line.setAttribute('data-doc-id', d.id);
+                line.className = 'flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded';
+                const icons = { caces:'📜', autorisation_conduite:'🚜', habilitation:'⚡', permis_feu:'🔥', fds:'🧪', plan_acces:'🏢', convention_pret:'📋', autre:'📄' };
+                const typeLbl = { caces:'CACES', autorisation_conduite:'Autorisation de conduite', habilitation:'Habilitation', permis_feu:'Permis feu', fds:'FDS', plan_acces:"Plan d'accès", convention_pret:'Convention de prêt', autre:'Autre' };
+                const ic = icons[d.type] || '📄';
+                const tl = typeLbl[d.type] || 'Autre';
+                line.innerHTML = `
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <span class="text-2xl shrink-0">${ic}</span>
+                        <div class="min-w-0">
+                            <div class="text-sm font-medium truncate" data-name></div>
+                            <div class="text-xs text-gray-500">${tl} — ${(d.size/1024).toFixed(0)} Ko — uploadé par SALTI</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 shrink-0">
+                        <a href="${d.download_url}?inline=1" target="_blank" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded">👁 <span class="hidden sm:inline">Voir</span></a>
+                        <a href="${d.download_url}" class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded">📥</a>
+                        <button type="button" onclick="saltiDeleteDoc(${d.id})" class="bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-2 py-1.5 rounded border border-red-200">🗑</button>
+                    </div>`;
+                line.querySelector('[data-name]').textContent = d.filename;
+                filesList.appendChild(line);
+                // Reset le label pour le prochain upload (la catégorie reste sur la dernière sélection)
+                if (labelInput) labelInput.value = '';
+            } catch (e) {
+                tempLine.remove();
+                alert('Erreur upload : ' + e.message);
+            }
+        }
+
+        window.saltiDeleteDoc = async function(docId) {
+            if (! confirm('Supprimer ce document ? Cette action est irréversible.')) return;
+            const r = await fetch(`/pdp/${PDP_ID}/document/${docId}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            });
+            if (r.ok) {
+                document.querySelector(`#salti-files-list [data-doc-id="${docId}"]`)?.remove();
+                // Réaffiche l'état 'aucun document' si la liste est vide
+                if (! filesList.querySelector('[data-doc-id]')) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-sm text-gray-500 italic';
+                    empty.setAttribute('data-empty-state', '');
+                    empty.textContent = 'Aucun document pour le moment.';
+                    filesList.appendChild(empty);
+                }
+            } else {
+                alert('Erreur suppression');
+            }
+        };
+    })();
 
     // Signature pads
     const sigPads = {};

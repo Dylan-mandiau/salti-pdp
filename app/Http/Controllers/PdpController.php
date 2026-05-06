@@ -318,7 +318,112 @@ class PdpController extends Controller
     }
 
     /**
-     * Télécharge / Affiche un fichier uploadé par le prestataire (côté SALTI).
+     * Upload d'un document côté SALTI (présentiel ou correction distance).
+     * Mêmes catégories que côté prestataire pour rester cohérent.
+     */
+    public function uploadDocument(Pdp $pdp, Request $request)
+    {
+        $this->authorizePdp($pdp);
+
+        if (in_array($pdp->status, [Pdp::STATUS_SIGNED, Pdp::STATUS_ARCHIVED, Pdp::STATUS_CANCELLED])) {
+            return response()->json(['error' => 'PDP verrouillé'], 423);
+        }
+
+        $request->validate([
+            'file' => 'required|file|max:10240',
+            'type' => 'required|in:caces,autorisation_conduite,habilitation,permis_feu,fds,plan_acces,convention_pret,autre',
+            'label' => 'nullable|string|max:255',
+        ]);
+
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        $filename = uniqid('doc_').'.'.$ext;
+        $relativeDir = "pdp/{$pdp->uuid}/uploads";
+        $absoluteDir = storage_path('app/'.$relativeDir);
+
+        if (! is_dir($absoluteDir)) {
+            if (! @mkdir($absoluteDir, 0775, true) && ! is_dir($absoluteDir)) {
+                \Log::error('Impossible de créer le dossier uploads SALTI', ['dir' => $absoluteDir]);
+                return response()->json(['error' => 'Erreur serveur : impossible de créer le dossier de stockage.'], 500);
+            }
+        }
+        if (! is_writable($absoluteDir)) {
+            return response()->json(['error' => 'Erreur serveur : dossier non accessible en écriture.'], 500);
+        }
+
+        $absolutePath = $absoluteDir.'/'.$filename;
+        $relativePath = $relativeDir.'/'.$filename;
+        $originalName = $file->getClientOriginalName();
+        $mimeType = $file->getClientMimeType() ?: 'application/octet-stream';
+        $size = $file->getSize();
+
+        try {
+            $file->move($absoluteDir, $filename);
+        } catch (\Throwable $e) {
+            \Log::error('Échec move() upload SALTI', ['err' => $e->getMessage()]);
+            return response()->json(['error' => 'Erreur lors de l\'enregistrement du fichier : '.$e->getMessage()], 500);
+        }
+
+        if (! file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            return response()->json(['error' => 'Le fichier n\'a pas pu être enregistré sur le serveur.'], 500);
+        }
+
+        $doc = $pdp->documents()->create([
+            'type' => $request->input('type', 'autre'),
+            'label' => $request->input('label'),
+            'path' => $relativePath,
+            'original_filename' => $originalName,
+            'mime_type' => $mimeType,
+            'size' => $size,
+            'uploaded_by' => 'salti',
+        ]);
+
+        $this->logAudit($pdp, 'uploaded_document_by_salti', $request, [
+            'filename' => $doc->original_filename,
+            'type' => $doc->type,
+        ]);
+
+        return response()->json([
+            'id' => $doc->id,
+            'filename' => $doc->original_filename,
+            'type' => $doc->type,
+            'label' => $doc->label,
+            'size' => $doc->size,
+            'uploaded_by' => $doc->uploaded_by,
+            'download_url' => route('pdp.download.document', ['pdp' => $pdp, 'doc' => $doc->id]),
+        ]);
+    }
+
+    /**
+     * Suppression d'un document côté SALTI.
+     * SALTI peut supprimer les documents qu'il a lui-même uploadés ET ceux du
+     * presta (ex: doublon à nettoyer). Le presta est notifié dans l'audit log.
+     */
+    public function deleteDocument(Pdp $pdp, int $docId, Request $request)
+    {
+        $this->authorizePdp($pdp);
+
+        if (in_array($pdp->status, [Pdp::STATUS_SIGNED, Pdp::STATUS_ARCHIVED])) {
+            return response()->json(['error' => 'PDP signé/archivé : suppression interdite.'], 423);
+        }
+
+        $doc = $pdp->documents()->where('id', $docId)->first();
+        if (! $doc) abort(404);
+
+        $absolutePath = storage_path('app/'.$doc->path);
+        if (file_exists($absolutePath)) @unlink($absolutePath);
+        $doc->delete();
+
+        $this->logAudit($pdp, 'deleted_document_by_salti', $request, [
+            'filename' => $doc->original_filename,
+            'uploaded_by' => $doc->uploaded_by,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Télécharge / Affiche un fichier uploadé (par le prestataire ou par SALTI).
      */
     public function downloadDocument(Pdp $pdp, int $docId, Request $request)
     {
