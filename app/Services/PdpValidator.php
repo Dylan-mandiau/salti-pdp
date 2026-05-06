@@ -39,6 +39,7 @@ class PdpValidator
         $this->checkHabilitationsVsRisques($pdp, $data);
         $this->checkSousTraitance($data);
         $this->checkLocaux($data);
+        $this->checkConventionMateriels($data);
         $this->checkSignatures($pdp, $data);
 
         return $this->summarize();
@@ -334,6 +335,21 @@ class PdpValidator
             $sousTraitants = $data['ee']['sous_traitants'] ?? [];
             if (empty($sousTraitants) || ! is_array($sousTraitants)) {
                 $this->warning('ee.sous_traitants', 'Sous-traitance déclarée : pensez à faire signer un PDP avec chaque sous-traitant.', 1);
+            }
+        }
+    }
+
+    /**
+     * Si la case "Convention de prêt" est cochée, au moins 1 matériel doit être listé
+     * (sinon la convention serait vide → document inutile).
+     */
+    private function checkConventionMateriels(array $data): void
+    {
+        if (! empty($data['documents_remis_ee']['convention_pret'])) {
+            $materiels = collect($data['materiels_pretes'] ?? [])
+                ->filter(fn($m) => ! empty($m['designation']));
+            if ($materiels->isEmpty()) {
+                $this->error('materiels_pretes', '🔧 Convention de prêt cochée → liste des matériels prêtés OBLIGATOIRE (étape 2).', 2);
             }
         }
     }

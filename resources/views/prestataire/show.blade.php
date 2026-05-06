@@ -84,6 +84,13 @@
                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">SIRET <span class="text-xs text-gray-500">(14 chiffres)</span></label>
+                    <input type="text" data-path="ee.siret" value="{{ $data['ee']['siret'] ?? '' }}"
+                           {{ $isLocked ? 'disabled' : '' }}
+                           maxlength="14" pattern="[0-9]{14}"
+                           class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono">
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Responsable des prestations</label>
                     <input type="text" data-path="ee.responsable_prestations" value="{{ $data['ee']['responsable_prestations'] ?? '' }}"
                            {{ $isLocked ? 'disabled' : '' }}

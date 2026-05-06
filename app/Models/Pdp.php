@@ -132,6 +132,7 @@ class Pdp extends Model
                 'responsable_prestations' => null,
                 'address' => null,
                 'phone' => null,
+                'siret' => null,                  // utilisé pour la convention de prêt
                 'sous_traitance' => null,        // 'oui' | 'non'
                 'sous_traitants' => [],
             ],

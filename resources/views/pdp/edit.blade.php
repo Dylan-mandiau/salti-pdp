@@ -174,6 +174,7 @@
                     <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">Entreprise extérieure</h3>
                     <div class="space-y-3">
                         @include('pdp.partials.input', ['name' => 'ee.raison_sociale', 'label' => 'Raison sociale', 'value' => $data['ee']['raison_sociale'] ?? null, 'required' => true])
+                        @include('pdp.partials.input', ['name' => 'ee.siret', 'label' => 'SIRET', 'value' => $data['ee']['siret'] ?? null, 'placeholder' => '14 chiffres', 'maxlength' => 14, 'help' => 'Pré-remplir si connu — sinon le prestataire le complétera.'])
                         @include('pdp.partials.input', ['name' => 'ee.responsable_prestations', 'label' => 'Responsable des prestations', 'value' => $data['ee']['responsable_prestations'] ?? null, 'required' => true])
                         @include('pdp.partials.input', ['name' => 'ee.address', 'label' => 'Adresse', 'value' => $data['ee']['address'] ?? null])
                         @include('pdp.partials.input', ['name' => 'ee.phone', 'label' => 'Téléphone', 'value' => $data['ee']['phone'] ?? null, 'type' => 'tel', 'maxlength' => 20])
@@ -266,6 +267,48 @@
                         <label class="flex items-start gap-2"><input type="checkbox" name="documents_remis_ee.permis_feu" @change="save()" {{ ($data['documents_remis_ee']['permis_feu'] ?? false) ? 'checked' : '' }} class="mt-0.5"> <span class="text-sm">Permis feu</span></label>
                         <label class="flex items-start gap-2"><input type="checkbox" name="documents_remis_ee.convention_pret" @change="save()" {{ ($data['documents_remis_ee']['convention_pret'] ?? false) ? 'checked' : '' }} class="mt-0.5"> <span class="text-sm">Convention de prêt de matériel</span></label>
                     </div>
+
+                    {{-- Matériels prêtés (apparaît si Convention cochée) --}}
+                    @if($data['documents_remis_ee']['convention_pret'] ?? false)
+                        <div class="mt-4 border border-gray-200 rounded-lg p-3 bg-gray-50" x-data>
+                            <h4 class="font-medium text-sm mb-2">Matériels prêtés au prestataire <span class="text-red-600">*</span></h4>
+                            <div id="materiels-list" class="space-y-2">
+                                @php $materiels = $data['materiels_pretes'] ?? []; if (empty($materiels)) $materiels = [['designation' => '']]; @endphp
+                                @foreach($materiels as $idx => $mat)
+                                    <div data-mat-line class="flex gap-2 items-center">
+                                        <input type="text" name="materiels_pretes.{{ $idx }}.designation" value="{{ $mat['designation'] ?? '' }}" placeholder="ex. Mini-pelle 2T" class="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm">
+                                        <button type="button" onclick="this.parentElement.remove(); document.querySelector('[x-data]').__x.$data.save()" class="text-red-600 hover:text-red-800 text-lg">×</button>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <button type="button" onclick="addMateriel()" class="mt-2 text-sm text-blue-600 hover:underline">+ Ajouter un matériel</button>
+                            <p class="text-xs text-gray-500 mt-2">Si la convention est cochée mais aucun matériel listé → erreur bloquante.</p>
+                        </div>
+                        <script>
+                            function addMateriel() {
+                                const container = document.getElementById('materiels-list');
+                                const idx = container.querySelectorAll('[data-mat-line]').length;
+                                const div = document.createElement('div');
+                                div.setAttribute('data-mat-line', '');
+                                div.className = 'flex gap-2 items-center';
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.name = `materiels_pretes.${idx}.designation`;
+                                input.placeholder = 'ex. Mini-pelle 2T';
+                                input.className = 'flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm';
+                                input.addEventListener('input', () => document.querySelector('[x-data]').__x.$data.save());
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.textContent = '×';
+                                btn.className = 'text-red-600 hover:text-red-800 text-lg';
+                                btn.addEventListener('click', () => { div.remove(); document.querySelector('[x-data]').__x.$data.save(); });
+                                div.appendChild(input);
+                                div.appendChild(btn);
+                                container.appendChild(div);
+                                input.focus();
+                            }
+                        </script>
+                    @endif
                 </div>
                 <div>
                     <h3 class="font-medium text-sm text-gray-700 mb-3 pb-2 border-b">Documents remis à SALTI</h3>
