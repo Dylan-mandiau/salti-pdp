@@ -87,8 +87,11 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">SIRET <span class="text-xs text-gray-500">(14 chiffres)</span></label>
                     <input type="text" data-path="ee.siret" value="{{ $data['ee']['siret'] ?? '' }}"
                            {{ $isLocked ? 'disabled' : '' }}
-                           maxlength="14" pattern="[0-9]{14}"
-                           class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono">
+                           maxlength="14" minlength="14" pattern="\d{14}" inputmode="numeric"
+                           oninput="this.value = this.value.replace(/\D/g, '').slice(0, 14); this.setCustomValidity(this.value && this.value.length !== 14 ? 'Le SIRET doit comporter exactement 14 chiffres.' : '')"
+                           placeholder="14 chiffres"
+                           class="pdp-siret-input w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono invalid:border-red-400 invalid:bg-red-50">
+                    <p class="text-xs text-red-600 mt-1 hidden pdp-siret-error">Le SIRET doit comporter exactement 14 chiffres.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Responsable des prestations</label>
@@ -253,7 +256,7 @@
                 @endif
             </p>
 
-            {{-- Catalogue d'habilitations groupées par catégorie pour les <select> --}}
+            {{-- Catalogue d'habilitations groupées par catégorie pour la modal --}}
             @php
                 $habByCategory = [];
                 foreach ($habCatalog as $code => [$label, $cat, $ref]) {
@@ -283,28 +286,16 @@
                         <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
                         <div class="space-y-2" data-hab-list>
                             @foreach($habList as $habItem)
-                                @php
-                                    // Détecter si l'habilitation existe dans le catalogue (sinon = saisie libre)
-                                    $isCustom = ! empty($habItem['label']) && ! collect($habCatalog)->contains(fn($h) => $h[0] === $habItem['label']);
-                                @endphp
                                 <div data-hab-line class="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200">
-                                    <div class="space-y-1" data-hab-input-wrap>
-                                        <select data-hab-field="select" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
-                                            <option value="">— Choisir une habilitation —</option>
-                                            @foreach($habByCategory as $cat => $items)
-                                                <optgroup label="{{ $cat }}">
-                                                    @foreach($items as $code => $label)
-                                                        <option value="{{ $code }}" @selected($habItem['code'] === $code)>{{ $label }}</option>
-                                                    @endforeach
-                                                </optgroup>
-                                            @endforeach
-                                            <option value="__custom__" @selected($isCustom)>✏ Autre / saisie libre…</option>
-                                        </select>
-                                        <input type="text" data-hab-field="label" value="{{ $habItem['label'] ?? '' }}"
-                                               placeholder="Décrivez l'habilitation"
-                                               class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm {{ $isCustom ? '' : 'hidden' }}">
-                                        <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
-                                    </div>
+                                    <button type="button" onclick="openHabPicker(this)"
+                                            class="w-full text-left border border-gray-300 rounded px-3 py-2 text-sm hover:border-salti-yellow hover:bg-yellow-50 flex items-center justify-between gap-2 min-h-[38px]">
+                                        <span data-hab-display class="truncate {{ empty($habItem['label']) ? 'text-gray-400' : 'text-gray-900 font-medium' }}">
+                                            {{ $habItem['label'] ?: '— Choisir une habilitation —' }}
+                                        </span>
+                                        <span class="text-gray-400 shrink-0 text-xs">▾</span>
+                                    </button>
+                                    <input type="hidden" data-hab-field="label" value="{{ $habItem['label'] ?? '' }}">
+                                    <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
                                     <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}"
                                            class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
                                     <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
@@ -317,6 +308,72 @@
                         </button>
                     </div>
                 @endfor
+            </div>
+
+            {{-- ─── Modal Habilitations (Option A : recherche + groupes) ─────────
+                 Une seule instance globale, partagée par toutes les lignes habilitation.
+                 Ouverte via openHabPicker(buttonEl) qui mémorise la ligne cible. --}}
+            <div id="hab-picker-modal" x-data="{ open: false, search: '', customMode: false, customLabel: '' }"
+                 x-show="open" x-cloak
+                 @keydown.escape.window="open = false"
+                 class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                 style="display:none">
+                <div @click="open = false" class="absolute inset-0 bg-black/50"></div>
+                <div class="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl max-h-[88vh] flex flex-col">
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">Choisir une habilitation</h3>
+                            <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-700 text-3xl leading-none w-8 h-8">×</button>
+                        </div>
+                        <input type="text" x-model="search" oninput="filterHabPicker(this.value)"
+                               placeholder="🔍 Rechercher (CACES, B2V, harnais, ATEX…)"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-salti-yellow focus:ring-1 focus:ring-salti-yellow"
+                               x-show="!customMode">
+                    </div>
+
+                    {{-- Liste des habilitations groupées par catégorie --}}
+                    <div class="flex-1 overflow-y-auto px-2 py-2" id="hab-picker-results" x-show="!customMode">
+                        @foreach($habByCategory as $cat => $items)
+                            <div data-hab-cat class="mb-2">
+                                <div class="text-xs font-bold text-gray-600 uppercase tracking-wide px-2 py-1.5 sticky top-0 bg-gray-50 rounded">
+                                    {{ $cat }} <span class="text-gray-400 font-normal" data-hab-cat-count>({{ count($items) }})</span>
+                                </div>
+                                @foreach($items as $code => $label)
+                                    <button type="button" data-hab-item data-hab-code="{{ $code }}" data-hab-label="{{ $label }}"
+                                            onclick="selectHabFromPicker(this.dataset.habCode, this.dataset.habLabel)"
+                                            class="w-full text-left px-3 py-2 rounded hover:bg-blue-50 text-sm flex items-center justify-between group transition">
+                                        <span>{{ $label }}</span>
+                                        <span class="text-xs text-gray-300 group-hover:text-blue-500">→</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endforeach
+                        <div data-hab-noresults class="text-center text-sm text-gray-500 italic py-8 hidden">
+                            Aucune habilitation ne correspond. Essayez un autre mot ou utilisez la <strong>saisie libre</strong>.
+                        </div>
+                    </div>
+
+                    {{-- Mode saisie libre --}}
+                    <div class="flex-1 overflow-y-auto p-4" x-show="customMode">
+                        <p class="text-sm text-gray-600 mb-2">Saisissez l'habilitation telle qu'elle figure sur le titre / certificat :</p>
+                        <input type="text" x-model="customLabel" placeholder="ex. Habilitation Drone < 25 kg"
+                               class="w-full border border-gray-300 rounded px-3 py-2 mb-3"
+                               @keydown.enter="if(customLabel.trim()) { selectCustomFromPicker(customLabel.trim()); }">
+                    </div>
+
+                    <div class="p-3 border-t border-gray-200 flex items-center justify-between gap-2">
+                        <button type="button" @click="customMode = !customMode; customLabel = ''; if(!customMode) document.querySelector('#hab-picker-modal input[type=text]')?.focus()"
+                                class="text-sm text-gray-600 hover:text-gray-900 px-2 py-1.5">
+                            <span x-show="!customMode">✏ Saisie libre</span>
+                            <span x-show="customMode">← Retour à la liste</span>
+                        </button>
+                        <div class="flex gap-2">
+                            <button type="button" @click="open = false" class="text-sm text-gray-600 px-3 py-1.5 hover:bg-gray-100 rounded">Annuler</button>
+                            <button type="button" x-show="customMode" @click="if(customLabel.trim()) selectCustomFromPicker(customLabel.trim())"
+                                    class="bg-salti-yellow hover:brightness-95 text-black font-semibold text-sm px-3 py-1.5 rounded">Valider</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <button type="button" onclick="addEmpCard()"
                     class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
@@ -956,73 +1013,105 @@
     }
     document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-emp-card] input, [data-emp-card] select, [data-ar-row]').forEach(attachAutoSave);
 
-    // ─── Catalogue habilitations groupées par catégorie ─────────────────────
-    const HAB_CATALOG = @json(\App\Models\Pdp::HABILITATIONS_LIST);
-    const HAB_BY_CATEGORY = {};
-    Object.entries(HAB_CATALOG).forEach(([code, [label, cat]]) => {
-        if (!HAB_BY_CATEGORY[cat]) HAB_BY_CATEGORY[cat] = {};
-        HAB_BY_CATEGORY[cat][code] = label;
-    });
+    // ─── Modal de sélection des habilitations (Option A) ─────────────────────
+    let habPickerTarget = null; // ligne data-hab-line en cours de sélection
 
-    /** Construit le HTML d'options groupées (optgroup) pour le select habilitation */
-    function buildHabOptionsHtml(selectedCode = '') {
-        let html = '<option value="">— Choisir une habilitation —</option>';
-        Object.keys(HAB_BY_CATEGORY).sort().forEach(cat => {
-            html += `<optgroup label="${cat}">`;
-            Object.entries(HAB_BY_CATEGORY[cat]).forEach(([code, label]) => {
-                const sel = code === selectedCode ? 'selected' : '';
-                html += `<option value="${code}" ${sel}>${label}</option>`;
+    /** Ouvre la modal et mémorise la ligne cible. */
+    window.openHabPicker = function(buttonEl) {
+        habPickerTarget = buttonEl.closest('[data-hab-line]');
+        const modal = document.getElementById('hab-picker-modal');
+        const data = (window.Alpine && Alpine.$data ? Alpine.$data(modal) : modal.__x?.$data);
+        if (data) {
+            data.open = true;
+            data.search = '';
+            data.customMode = false;
+            data.customLabel = '';
+        }
+        // Réinitialise la liste filtrée
+        filterHabPicker('');
+        // Focus sur la recherche après le rendu Alpine
+        setTimeout(() => {
+            modal.querySelector('input[type="text"]')?.focus();
+        }, 50);
+    };
+
+    /** Sélection depuis le catalogue : remplit la ligne cible + ferme la modal */
+    window.selectHabFromPicker = function(code, label) {
+        if (! habPickerTarget) return;
+        setHabLineValue(habPickerTarget, code, label);
+        closeHabPicker();
+    };
+
+    /** Sélection libre : remplit la ligne avec un label custom (sans code) */
+    window.selectCustomFromPicker = function(label) {
+        if (! habPickerTarget) return;
+        setHabLineValue(habPickerTarget, '', label);
+        closeHabPicker();
+    };
+
+    function setHabLineValue(line, code, label) {
+        line.querySelector('[data-hab-field="label"]').value = label;
+        line.querySelector('[data-hab-field="code"]').value = code;
+        const display = line.querySelector('[data-hab-display]');
+        if (display) {
+            display.textContent = label || '— Choisir une habilitation —';
+            display.classList.toggle('text-gray-400', !label);
+            display.classList.toggle('text-gray-900', !!label);
+            display.classList.toggle('font-medium', !!label);
+        }
+        // Déclenche autoSave
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(autoSave, 300);
+    }
+
+    function closeHabPicker() {
+        const modal = document.getElementById('hab-picker-modal');
+        const data = (window.Alpine && Alpine.$data ? Alpine.$data(modal) : modal.__x?.$data);
+        if (data) data.open = false;
+        habPickerTarget = null;
+    }
+
+    /** Filtre la liste à chaque keystroke dans le champ recherche */
+    window.filterHabPicker = function(query) {
+        const q = (query || '').toLowerCase().trim();
+        let totalVisible = 0;
+        document.querySelectorAll('#hab-picker-results [data-hab-cat]').forEach(cat => {
+            let visible = 0;
+            cat.querySelectorAll('[data-hab-item]').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                const match = !q || text.includes(q);
+                item.style.display = match ? '' : 'none';
+                if (match) visible++;
             });
-            html += '</optgroup>';
+            cat.style.display = visible > 0 ? '' : 'none';
+            const countEl = cat.querySelector('[data-hab-cat-count]');
+            if (countEl && q) countEl.textContent = `(${visible})`;
+            totalVisible += visible;
         });
-        html += '<option value="__custom__">✏ Autre / saisie libre…</option>';
-        return html;
-    }
+        const nores = document.querySelector('[data-hab-noresults]');
+        if (nores) nores.classList.toggle('hidden', totalVisible > 0);
+    };
 
-    /** Quand le select change : si custom → affiche l'input texte, sinon → cache + auto-fill label depuis catalogue */
-    function wireHabLineSelect(line) {
-        const select = line.querySelector('[data-hab-field="select"]');
-        const labelInput = line.querySelector('[data-hab-field="label"]');
-        const codeInput = line.querySelector('[data-hab-field="code"]');
-        if (! select) return;
-        select.addEventListener('change', () => {
-            const v = select.value;
-            if (v === '__custom__') {
-                labelInput.classList.remove('hidden');
-                labelInput.focus();
-                codeInput.value = '';
-            } else if (v && HAB_CATALOG[v]) {
-                labelInput.value = HAB_CATALOG[v][0]; // libellé canonique
-                labelInput.classList.add('hidden');
-                codeInput.value = v;
-            } else {
-                labelInput.value = '';
-                labelInput.classList.add('hidden');
-                codeInput.value = '';
-            }
-        });
-    }
-    // Wire les selects existants au chargement
-    document.querySelectorAll('[data-hab-line]').forEach(wireHabLineSelect);
-
-    /** Construit une ligne <habilitation> (select + saisie libre + validity + bouton ✕) */
+    /** Construit une ligne <habilitation> (bouton qui ouvre la modal + validity + bouton ✕) */
     function buildHabLineEl(code = '', label = '', validity = '') {
         const wrap = document.createElement('div');
         wrap.setAttribute('data-hab-line', '');
         wrap.className = 'grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200';
+        const safeLabel = (label || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         wrap.innerHTML = `
-            <div class="space-y-1" data-hab-input-wrap>
-                <select data-hab-field="select" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
-                    ${buildHabOptionsHtml(code)}
-                </select>
-                <input type="text" data-hab-field="label" value="${label}" placeholder="Décrivez l'habilitation" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm hidden">
-                <input type="hidden" data-hab-field="code" value="${code}">
-            </div>
+            <button type="button" onclick="openHabPicker(this)"
+                    class="w-full text-left border border-gray-300 rounded px-3 py-2 text-sm hover:border-salti-yellow hover:bg-yellow-50 flex items-center justify-between gap-2 min-h-[38px]">
+                <span data-hab-display class="truncate ${label ? 'text-gray-900 font-medium' : 'text-gray-400'}">
+                    ${safeLabel || '— Choisir une habilitation —'}
+                </span>
+                <span class="text-gray-400 shrink-0 text-xs">▾</span>
+            </button>
+            <input type="hidden" data-hab-field="label" value="${safeLabel}">
+            <input type="hidden" data-hab-field="code" value="${code}">
             <input type="date" data-hab-field="validity" value="${validity}" class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
             <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
         `;
-        wrap.querySelectorAll('input, select').forEach(attachAutoSave);
-        wireHabLineSelect(wrap);
+        wrap.querySelectorAll('input').forEach(attachAutoSave);
         return wrap;
     }
 

@@ -324,8 +324,13 @@ class PdpController extends Controller
     {
         $this->authorizePdp($pdp);
         $doc = $pdp->documents()->where('id', $docId)->first();
-        if (! $doc) abort(404);
-        return $this->fileOrDownload(storage_path('app/'.$doc->path), $doc->original_filename, $request);
+        if (! $doc) abort(404, 'Document introuvable.');
+        $absolutePath = storage_path('app/'.$doc->path);
+        if (! file_exists($absolutePath)) {
+            \Log::warning('Document DB existant mais fichier physique manquant', ['doc_id' => $docId, 'path' => $absolutePath]);
+            abort(404, 'Le fichier joint a été perdu sur le serveur. Demandez au prestataire de le ré-uploader.');
+        }
+        return $this->fileOrDownload($absolutePath, $doc->original_filename, $request);
     }
 
     /**

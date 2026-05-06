@@ -44,6 +44,18 @@ class PrestataireAccessController extends Controller
 
         $payload = $request->input('data', []);
 
+        // Validation SIRET : si saisi, doit faire exactement 14 chiffres
+        if (isset($payload['ee']['siret'])) {
+            $siret = preg_replace('/\D/', '', (string) $payload['ee']['siret']);
+            if ($siret !== '' && strlen($siret) !== 14) {
+                return response()->json([
+                    'error' => 'SIRET invalide : 14 chiffres requis.',
+                    'field' => 'ee.siret',
+                ], 422);
+            }
+            $payload['ee']['siret'] = $siret; // normalise (que des chiffres)
+        }
+
         // 1) Mise à jour des données JSON (clés autorisées côté prestataire)
         $allowed = ['ee', 'autres_risques', 'risques', 'documents_remis_salti', 'permis_feu'];
         $data = $pdp->data;
@@ -130,22 +142,52 @@ class PrestataireAccessController extends Controller
         ]);
 
         $file = $request->file('file');
-        $ext = $file->getClientOriginalExtension();
-        $relativePath = "pdp/{$pdp->uuid}/uploads/".uniqid('doc_').".{$ext}";
-        $absolutePath = storage_path('app/'.$relativePath);
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        $filename = uniqid('doc_').'.'.$ext;
+        $relativeDir = "pdp/{$pdp->uuid}/uploads";
+        $absoluteDir = storage_path('app/'.$relativeDir);
 
-        if (! is_dir(dirname($absolutePath))) {
-            mkdir(dirname($absolutePath), 0775, true);
+        // Crée le dossier avec permissions correctes
+        if (! is_dir($absoluteDir)) {
+            if (! @mkdir($absoluteDir, 0775, true) && ! is_dir($absoluteDir)) {
+                \Log::error('Impossible de créer le dossier uploads', ['dir' => $absoluteDir]);
+                return response()->json(['error' => 'Erreur serveur : impossible de créer le dossier de stockage.'], 500);
+            }
         }
-        $file->move(dirname($absolutePath), basename($absolutePath));
+        if (! is_writable($absoluteDir)) {
+            \Log::error('Dossier uploads non writable', ['dir' => $absoluteDir]);
+            return response()->json(['error' => 'Erreur serveur : dossier non accessible en écriture.'], 500);
+        }
+
+        $absolutePath = $absoluteDir.'/'.$filename;
+        $relativePath = $relativeDir.'/'.$filename;
+
+        // Capture le originalName + size AVANT le move() (l'objet UploadedFile devient
+        // invalide après déplacement et getSize()/getClientOriginalName() peuvent renvoyer null/0)
+        $originalName = $file->getClientOriginalName();
+        $mimeType = $file->getClientMimeType() ?: 'application/octet-stream';
+        $size = $file->getSize();
+
+        try {
+            $file->move($absoluteDir, $filename);
+        } catch (\Throwable $e) {
+            \Log::error('Échec move() upload', ['err' => $e->getMessage(), 'dest' => $absolutePath]);
+            return response()->json(['error' => 'Erreur lors de l\'enregistrement du fichier : '.$e->getMessage()], 500);
+        }
+
+        // Vérification physique : le fichier doit exister à la destination
+        if (! file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            \Log::error('Fichier introuvable après move', ['path' => $absolutePath]);
+            return response()->json(['error' => 'Le fichier n\'a pas pu être enregistré sur le serveur.'], 500);
+        }
 
         $doc = $pdp->documents()->create([
             'type' => $request->input('type', 'autre'),
             'label' => $request->input('label'),
             'path' => $relativePath,
-            'original_filename' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType() ?? 'application/octet-stream',
-            'size' => $file->getSize(),
+            'original_filename' => $originalName,
+            'mime_type' => $mimeType,
+            'size' => $size,
             'uploaded_by' => 'prestataire',
         ]);
 
@@ -184,8 +226,13 @@ class PrestataireAccessController extends Controller
     {
         $pdp = $this->resolveToken($token);
         $doc = $pdp->documents()->where('id', $docId)->first();
-        if (! $doc) abort(404);
-        return $this->fileResponse(storage_path('app/'.$doc->path), $doc->original_filename, $request);
+        if (! $doc) abort(404, 'Document introuvable.');
+        $absolutePath = storage_path('app/'.$doc->path);
+        if (! file_exists($absolutePath)) {
+            \Log::warning('Document DB existant mais fichier physique manquant', ['doc_id' => $docId, 'path' => $absolutePath]);
+            abort(404, 'Le fichier joint a été perdu sur le serveur. Veuillez le ré-uploader.');
+        }
+        return $this->fileResponse($absolutePath, $doc->original_filename, $request);
     }
 
     /**
