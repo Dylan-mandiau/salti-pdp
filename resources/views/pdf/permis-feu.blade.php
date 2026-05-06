@@ -255,9 +255,35 @@
         </tr>
     </thead>
     <tbody>
-        <tr><td>Responsable des travaux EU</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-        <tr><td>Chargé de sécurité EU</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-        <tr><td>Responsable d'intervention EI</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+        {{-- Responsable des travaux EU = donneur d'ordre SALTI --}}
+        <tr>
+            <td>Responsable des travaux EU</td>
+            <td class="filled">{{ $val($pdp->donneur_ordre_nom) }}</td>
+            <td class="filled">{{ $val($data['signature_salti_fonction'] ?? null) }}</td>
+            <td style="text-align:center;height:38px">
+                @if(! empty($data['signature_salti']))
+                    <img src="{{ $data['signature_salti'] }}" style="max-height:32px;max-width:100%">
+                @endif
+            </td>
+        </tr>
+        {{-- Chargé de sécurité EU : laissé vide (champ libre, à compléter en présentiel par le QSE) --}}
+        <tr>
+            <td>Chargé de sécurité EU</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+        {{-- Responsable d'intervention EI = représentant prestataire --}}
+        <tr>
+            <td>Responsable d'intervention EI</td>
+            <td class="filled">{{ $val($data['ee']['responsable_prestations'] ?? null) }}</td>
+            <td class="filled">{{ $val($data['signature_ee_fonction'] ?? null) }}</td>
+            <td style="text-align:center;height:38px">
+                @if(! empty($data['signature_ee']))
+                    <img src="{{ $data['signature_ee'] }}" style="max-height:32px;max-width:100%">
+                @endif
+            </td>
+        </tr>
         <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
         <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
     </tbody>

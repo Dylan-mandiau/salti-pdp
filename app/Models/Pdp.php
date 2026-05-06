@@ -139,6 +139,26 @@ class Pdp extends Model
             return false;
         }
 
+        // Backfill du permis feu pour les PDP déjà signés avant l'auto-sync :
+        // si le permis feu est requis et que la signature/date de délivrance
+        // sont vides, on les copie depuis la signature presta.
+        $data = $this->data;
+        $changed = false;
+        if (! empty($data['documents_remis_ee']['permis_feu'])) {
+            if (empty($data['permis_feu']['signed_by_employer']) && ! empty($data['signature_ee'])) {
+                $data['permis_feu']['signed_by_employer'] = $data['signature_ee'];
+                $changed = true;
+            }
+            if (empty($data['permis_feu']['date_delivrance']) && $this->signed_by_prestataire_at) {
+                $data['permis_feu']['date_delivrance'] = $this->signed_by_prestataire_at->toDateString();
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $this->data = $data;
+            $this->save();
+        }
+
         $finalPath = $generator->generate($this);
         $absolutePath = storage_path('app/'.$finalPath);
         $hash = hash_file('sha256', $absolutePath);

@@ -155,28 +155,29 @@
 <p style="margin-top:16px">Fait à <span class="filled">Marcq-en-Baroeul</span>, en double exemplaires,</p>
 <p>Le <span class="filled">{{ now()->format('d/m/Y') }}</span></p>
 
-<p style="margin-top:8px"><strong>Signatures</strong></p>
-
-<pagebreak />
-
-<table class="parties" style="margin-top:20px">
-    <tr>
-        <td style="width:50%;height:120px">
-            <p>SA SALTI, représenté par<br>
-            <span class="filled">{{ $val($pdp->donneur_ordre_nom) }}</span></p>
-            @if(! empty($data['signature_salti']))
-                <img src="{{ $data['signature_salti'] }}" style="max-height:60px;margin-top:8px">
-            @endif
-        </td>
-        <td style="width:50%;height:120px">
-            <p>la société <span class="filled">{{ $val($data['ee']['raison_sociale'] ?? null) }}</span><br>
-            représenté par <span class="filled">{{ $val($data['ee']['responsable_prestations'] ?? null) }}</span></p>
-            @if(! empty($data['signature_ee']))
-                <img src="{{ $data['signature_ee'] }}" style="max-height:60px;margin-top:8px">
-            @endif
-        </td>
-    </tr>
-</table>
+{{-- Bloc Signatures : titre + tableau gardés ensemble (page-break-inside: avoid)
+     pour rester sur la même page. Plus de pagebreak forcé. --}}
+<div style="page-break-inside: avoid; margin-top:8px">
+    <p><strong>Signatures</strong></p>
+    <table class="parties" style="margin-top:8px">
+        <tr>
+            <td style="width:50%;height:90px">
+                <p>SA SALTI, représenté par<br>
+                <span class="filled">{{ $val($pdp->donneur_ordre_nom) }}</span></p>
+                @if(! empty($data['signature_salti']))
+                    <img src="{{ $data['signature_salti'] }}" style="max-height:55px;margin-top:4px">
+                @endif
+            </td>
+            <td style="width:50%;height:90px">
+                <p>la société <span class="filled">{{ $val($data['ee']['raison_sociale'] ?? null) }}</span><br>
+                représenté par <span class="filled">{{ $val($data['ee']['responsable_prestations'] ?? null) }}</span></p>
+                @if(! empty($data['signature_ee']))
+                    <img src="{{ $data['signature_ee'] }}" style="max-height:55px;margin-top:4px">
+                @endif
+            </td>
+        </tr>
+    </table>
+</div>
 
 </body>
 </html>

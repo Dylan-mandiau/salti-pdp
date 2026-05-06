@@ -426,6 +426,14 @@ class PdpController extends Controller
         // En présentiel, on capture aussi le nom du signataire EE
         $data['ee']['responsable_prestations'] = $request->input('signature_nom');
 
+        // Auto-report sur le Permis feu (signature de l'employeur + date de délivrance)
+        if (! empty($data['documents_remis_ee']['permis_feu'])) {
+            $data['permis_feu']['signed_by_employer'] = $request->input('signature_data');
+            if (empty($data['permis_feu']['date_delivrance'])) {
+                $data['permis_feu']['date_delivrance'] = now()->toDateString();
+            }
+        }
+
         $pdp->update([
             'data' => $data,
             'signed_by_prestataire_at' => now(),
