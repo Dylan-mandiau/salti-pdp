@@ -571,6 +571,47 @@
             <h2 class="text-lg font-semibold mb-4">Signatures</h2>
 
             @if($pdp->status === 'awaiting_signatures' || $pdp->status === 'signed')
+                {{-- Bloc obligation de consultation côté SALTI --}}
+                @if(! $pdp->signed_by_salti_at)
+                    <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4" x-data="{ saltiConsulted: false }" x-init="window.saltiConsulted = $data">
+                        <p class="text-sm font-medium mb-3">
+                            ⚠ <strong>Avant de signer</strong>, consultez les documents que vous engagez SALTI à respecter :
+                        </p>
+                        <ul class="space-y-2 text-sm mb-3">
+                            <li class="flex items-center justify-between gap-3">
+                                <span>📋 Le Plan de Prévention</span>
+                                <a href="{{ route('pdp.preview', $pdp) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                            </li>
+                            @if($data['documents_remis_ee']['plan_acces'] ?? false)
+                                @if($pdp->agency?->access_plan_path)
+                                    <li class="flex items-center justify-between gap-3">
+                                        <span>🏢 Plan d'accès / circulation ({{ $pdp->agency->city ?? '' }})</span>
+                                        <a href="{{ route('admin.agencies.download-plan', $pdp->agency) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                    </li>
+                                @endif
+                            @endif
+                            @if($data['documents_remis_ee']['permis_feu'] ?? false)
+                                <li class="flex items-center justify-between gap-3">
+                                    <span>🔥 Permis feu pré-rempli</span>
+                                    <a href="{{ route('pdp.download', $pdp) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter (joint au PDF)</a>
+                                </li>
+                            @endif
+                            @if($data['documents_remis_ee']['convention_pret'] ?? false)
+                                <li class="flex items-center justify-between gap-3">
+                                    <span>📋 Convention de prêt de matériel</span>
+                                    <a href="{{ route('pdp.download', $pdp) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter (joint au PDF)</a>
+                                </li>
+                            @endif
+                        </ul>
+                        <label class="flex items-start gap-2 cursor-pointer p-3 bg-white rounded border border-yellow-300">
+                            <input type="checkbox" id="salti-consult-cb" class="mt-0.5">
+                            <span class="text-sm font-medium">
+                                J'ai lu et compris l'ensemble des documents ci-dessus, et je m'engage à les faire respecter.
+                            </span>
+                        </label>
+                    </div>
+                @endif
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {{-- Signature SALTI --}}
                     <div class="border border-gray-200 rounded-lg p-4">
@@ -589,7 +630,7 @@
                                 <input type="hidden" name="signature_data" id="sig-salti-data">
                                 <div class="flex gap-2 mt-2">
                                     <button type="button" onclick="clearSig('salti')" class="text-sm text-gray-600">Effacer</button>
-                                    <button type="submit" onclick="return submitSig('salti')" class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
+                                    <button type="submit" onclick="return checkConsultedAndSign('salti')" class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
                                 </div>
                             </form>
                         @endif
@@ -605,6 +646,32 @@
                             </div>
                         @elseif($pdp->mode === 'presentiel')
                             <p class="text-sm text-gray-600 mb-3"><span class="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-xs px-2 py-0.5 rounded">📱 Mode présentiel</span> Passez l'appareil au représentant.</p>
+
+                            {{-- Bloc obligation de consultation côté EE en présentiel --}}
+                            <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-3">
+                                <p class="text-xs font-medium mb-2">
+                                    ⚠ <strong>Avant de signer</strong>, le représentant EE doit consulter les documents qui l'engagent :
+                                </p>
+                                <ul class="space-y-1 text-xs mb-2">
+                                    <li class="flex items-center justify-between gap-2">
+                                        <span>📋 Le Plan de Prévention</span>
+                                        <a href="{{ route('pdp.preview', $pdp) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                    </li>
+                                    @if($pdp->agency?->access_plan_path && ($data['documents_remis_ee']['plan_acces'] ?? false))
+                                        <li class="flex items-center justify-between gap-2">
+                                            <span>🏢 Plan d'accès</span>
+                                            <a href="{{ route('admin.agencies.download-plan', $pdp->agency) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                        </li>
+                                    @endif
+                                </ul>
+                                <label class="flex items-start gap-2 cursor-pointer p-2 bg-white rounded border border-yellow-300">
+                                    <input type="checkbox" id="ee-consult-cb" class="mt-0.5">
+                                    <span class="text-xs font-medium">
+                                        Le représentant EE a lu et compris l'ensemble des documents ci-dessus, et s'engage à les respecter.
+                                    </span>
+                                </label>
+                            </div>
+
                             <form method="POST" action="{{ route('pdp.sign-ee-presentiel', $pdp) }}">
                                 @csrf
                                 <input type="text" name="signature_nom" placeholder="Nom et prénom du représentant" required value="{{ $data['ee']['responsable_prestations'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 mb-2 text-sm">
@@ -613,7 +680,7 @@
                                 <input type="hidden" name="signature_data" id="sig-ee-data">
                                 <div class="flex gap-2 mt-2">
                                     <button type="button" onclick="clearSig('ee')" class="text-sm text-gray-600">Effacer</button>
-                                    <button type="submit" onclick="return submitSig('ee')" class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
+                                    <button type="submit" onclick="return checkConsultedAndSign('ee')" class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
                                 </div>
                             </form>
                         @else
@@ -940,6 +1007,15 @@
         }
         document.getElementById('sig-' + role + '-data').value = sigPads[role].toDataURL('image/png');
         return true;
+    }
+    function checkConsultedAndSign(role) {
+        const cbId = role === 'salti' ? 'salti-consult-cb' : 'ee-consult-cb';
+        const cb = document.getElementById(cbId);
+        if (cb && !cb.checked) {
+            alert('Vous devez consulter les documents et cocher la case d\'engagement avant de signer.');
+            return false;
+        }
+        return submitSig(role);
     }
 </script>
 </x-layouts.pdp>

@@ -122,56 +122,115 @@
         </div>
 
         {{-- Documents que vous remettez à SALTI --}}
+        @php
+            $existingDocs = $pdp->documents()->where('uploaded_by', 'prestataire')->get();
+            $docsByType = $existingDocs->groupBy('type');
+            // Catégories demandées par SALTI (selon la check-list cochée)
+            $requestedTypes = [
+                'autorisation_conduite' => ['label' => 'Autorisation de conduite', 'icon' => '🚜'],
+                'caces' => ['label' => 'CACES', 'icon' => '📜'],
+                'habilitation' => ['label' => 'Habilitations', 'icon' => '⚡'],
+            ];
+            $reqMap = [
+                'autorisation_conduite' => $data['documents_remis_salti']['autorisation_conduite'] ?? false,
+                'caces' => $data['documents_remis_salti']['caces'] ?? false,
+                'habilitation' => $data['documents_remis_salti']['habilitations'] ?? false,
+            ];
+        @endphp
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 class="font-semibold mb-4">Documents que vous remettez à SALTI</h2>
+            <h2 class="font-semibold mb-1">Documents que vous remettez à SALTI</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Cochez les types fournis et joignez les fichiers correspondants. Vous pouvez aussi ajouter des documents libres.
+            </p>
 
-            <p class="text-sm text-gray-600 mb-3">1️⃣ Cochez les types de documents fournis :</p>
-            <div class="space-y-2 mb-5">
-                <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" data-cb-path="documents_remis_salti.autorisation_conduite" {{ ($data['documents_remis_salti']['autorisation_conduite'] ?? false) ? 'checked' : '' }} class="mt-0.5">
-                    <span class="text-sm">Autorisation de conduite</span>
-                </label>
-                <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" data-cb-path="documents_remis_salti.caces" {{ ($data['documents_remis_salti']['caces'] ?? false) ? 'checked' : '' }} class="mt-0.5">
-                    <span class="text-sm">CACES</span>
-                </label>
-                <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" data-cb-path="documents_remis_salti.habilitations" {{ ($data['documents_remis_salti']['habilitations'] ?? false) ? 'checked' : '' }} class="mt-0.5">
-                    <span class="text-sm">Habilitations</span>
-                </label>
-            </div>
-
-            <p class="text-sm text-gray-600 mb-3">2️⃣ Joignez vos fichiers (glisser-déposer ou cliquer) :</p>
-            {{-- Zone drag & drop --}}
-            <div id="dropzone"
-                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-salti-yellow hover:bg-salti-yellow/5 transition">
-                <div class="text-4xl mb-2">📂</div>
-                <div class="text-sm font-medium text-gray-700 mb-1">
-                    <span class="text-salti-yellow-dark underline">Cliquer pour choisir</span>
-                    ou glissez vos fichiers ici
+            {{-- Section 1 : Documents demandés par SALTI --}}
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">📌 Demandés par SALTI</span>
                 </div>
-                <div class="text-xs text-gray-500">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</div>
-                <input type="file" id="dropzone-input" multiple class="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
-            </div>
+                <div class="space-y-3">
+                    @foreach($requestedTypes as $typeKey => $meta)
+                        @php
+                            $cbPath = $typeKey === 'habilitation' ? 'documents_remis_salti.habilitations' : 'documents_remis_salti.'.$typeKey;
+                            $isRequested = $reqMap[$typeKey];
+                            $typeDocs = $docsByType[$typeKey] ?? collect();
+                        @endphp
+                        <div class="border border-gray-200 rounded-lg p-3" data-type-block="{{ $typeKey }}">
+                            <label class="flex items-center gap-2 cursor-pointer mb-2">
+                                <input type="checkbox" data-cb-path="{{ $cbPath }}" {{ $isRequested ? 'checked' : '' }}>
+                                <span class="text-sm font-medium">{{ $meta['icon'] }} {{ $meta['label'] }}</span>
+                                @if($typeDocs->count() > 0)
+                                    <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">{{ $typeDocs->count() }} fichier{{ $typeDocs->count() > 1 ? 's' : '' }}</span>
+                                @endif
+                            </label>
 
-            {{-- Liste des fichiers déjà uploadés --}}
-            @php $existingDocs = $pdp->documents()->where('uploaded_by', 'prestataire')->get(); @endphp
-            <div id="files-list" class="mt-4 space-y-2">
-                @foreach($existingDocs as $doc)
-                    <div data-doc-id="{{ $doc->id }}" class="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded">
-                        <div class="flex items-center gap-2 min-w-0 flex-1">
-                            <span class="text-xl shrink-0">📄</span>
-                            <div class="min-w-0">
-                                <div class="text-sm font-medium truncate">{{ $doc->original_filename }}</div>
-                                <div class="text-xs text-gray-500">{{ number_format($doc->size / 1024, 0) }} Ko · {{ $doc->type }}</div>
+                            <div class="ml-6">
+                                <div class="dz-mini border border-dashed border-gray-300 rounded p-3 text-center cursor-pointer hover:border-salti-yellow hover:bg-salti-yellow/5 transition text-xs"
+                                     data-dropzone="{{ $typeKey }}">
+                                    <span class="text-gray-600">📂 <span class="text-salti-yellow-dark underline">Joindre un fichier</span> pour {{ strtolower($meta['label']) }}</span>
+                                    <input type="file" class="hidden" data-dz-input="{{ $typeKey }}" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                                </div>
+                                <div class="mt-2 space-y-2" data-files-list="{{ $typeKey }}">
+                                    @foreach($typeDocs as $doc)
+                                        <div data-doc-id="{{ $doc->id }}" class="flex items-center justify-between gap-3 p-2 bg-gray-50 border border-gray-200 rounded">
+                                            <div class="flex items-center gap-2 min-w-0 flex-1">
+                                                <span class="text-lg shrink-0">📄</span>
+                                                <div class="min-w-0">
+                                                    <div class="text-xs font-medium truncate">{{ $doc->original_filename }}</div>
+                                                    <div class="text-xs text-gray-500">{{ number_format($doc->size / 1024, 0) }} Ko</div>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-2 shrink-0">
+                                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-xs text-blue-600 hover:underline">Voir</a>
+                                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-xs text-red-600 hover:underline">Supprimer</button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
-                        <div class="flex gap-2 shrink-0">
-                            <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-sm text-blue-600 hover:underline">Voir</a>
-                            <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-sm text-red-600 hover:underline">Supprimer</button>
-                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Section 2 : Autres documents (uploads libres) --}}
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded">➕ Autres documents (libre)</span>
+                    @php $autreDocs = $docsByType['autre'] ?? collect(); @endphp
+                    @if($autreDocs->count() > 0)
+                        <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">{{ $autreDocs->count() }} fichier{{ $autreDocs->count() > 1 ? 's' : '' }}</span>
+                    @endif
+                </div>
+                <p class="text-xs text-gray-500 mb-2">Permis feu papier scanné, FDS, photos d'EPI, etc.</p>
+                <div id="dropzone"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-salti-yellow hover:bg-salti-yellow/5 transition"
+                     data-dropzone="autre">
+                    <div class="text-3xl mb-2">📂</div>
+                    <div class="text-sm font-medium text-gray-700 mb-1">
+                        <span class="text-salti-yellow-dark underline">Cliquer pour choisir</span>
+                        ou glissez vos fichiers ici
                     </div>
-                @endforeach
+                    <div class="text-xs text-gray-500">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</div>
+                    <input type="file" id="dropzone-input" data-dz-input="autre" multiple class="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc">
+                </div>
+                <div id="files-list" class="mt-3 space-y-2" data-files-list="autre">
+                    @foreach($autreDocs as $doc)
+                        <div data-doc-id="{{ $doc->id }}" class="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                            <div class="flex items-center gap-2 min-w-0 flex-1">
+                                <span class="text-xl shrink-0">📄</span>
+                                <div class="min-w-0">
+                                    <div class="text-sm font-medium truncate">{{ $doc->original_filename }}</div>
+                                    <div class="text-xs text-gray-500">{{ number_format($doc->size / 1024, 0) }} Ko</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <a href="{{ route('prestataire.download-document', ['token' => $token, 'doc' => $doc->id]) }}" class="text-sm text-blue-600 hover:underline">Voir</a>
+                                <button type="button" onclick="deleteDoc({{ $doc->id }})" class="text-sm text-red-600 hover:underline">Supprimer</button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
 
@@ -486,9 +545,49 @@
                     </button>
                 </form>
             @elseif($pdp->status === 'awaiting_signatures')
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 class="font-semibold mb-3">Votre signature</h2>
-                    <form method="POST" action="{{ route('prestataire.sign', $token) }}">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6" x-data="{ documentsConsulted: false }">
+                    <h2 class="font-semibold mb-3">📝 Votre signature finale</h2>
+
+                    {{-- Bloc obligation de consultation --}}
+                    <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
+                        <p class="text-sm font-medium mb-3">
+                            ⚠ <strong>Avant de signer</strong>, vous devez consulter les documents qui vous engagent :
+                        </p>
+                        <ul class="space-y-2 text-sm mb-3">
+                            <li class="flex items-center justify-between gap-3">
+                                <span>📋 Le Plan de Prévention SALTI</span>
+                                <a href="{{ route('prestataire.download-main-pdp', $token) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                            </li>
+                            @if($data['documents_remis_ee']['plan_acces'] ?? false)
+                                @if($pdp->agency?->access_plan_path)
+                                <li class="flex items-center justify-between gap-3">
+                                    <span>🏢 Plan d'accès / circulation</span>
+                                    <a href="{{ route('prestataire.download-plan-acces', $token) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                </li>
+                                @endif
+                            @endif
+                            @if($data['documents_remis_ee']['permis_feu'] ?? false)
+                                <li class="flex items-center justify-between gap-3">
+                                    <span>🔥 Permis feu</span>
+                                    <a href="{{ route('prestataire.download-permis-feu', $token) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                </li>
+                            @endif
+                            @if($data['documents_remis_ee']['convention_pret'] ?? false)
+                                <li class="flex items-center justify-between gap-3">
+                                    <span>📋 Convention de prêt de matériel</span>
+                                    <a href="{{ route('prestataire.download-convention-pret', $token) }}" target="_blank" class="text-blue-600 hover:underline whitespace-nowrap">👁 Consulter</a>
+                                </li>
+                            @endif
+                        </ul>
+                        <label class="flex items-start gap-2 cursor-pointer p-3 bg-white rounded border border-yellow-300">
+                            <input type="checkbox" x-model="documentsConsulted" class="mt-0.5">
+                            <span class="text-sm font-medium">
+                                J'ai lu et compris l'ensemble des documents ci-dessus, et je m'engage à les respecter.
+                            </span>
+                        </label>
+                    </div>
+
+                    <form method="POST" action="{{ route('prestataire.sign', $token) }}" x-bind:class="documentsConsulted ? '' : 'opacity-50 pointer-events-none'">
                         @csrf
                         <input type="text" name="signature_fonction" placeholder="Votre fonction" required
                                class="w-full border border-gray-300 rounded px-3 py-2 mb-3">
@@ -496,17 +595,116 @@
                         <input type="hidden" name="signature_data" id="sig-ee-data">
                         <div class="flex gap-2 mt-2">
                             <button type="button" onclick="sigEE.clear()" class="text-sm text-gray-600">Effacer</button>
-                            <button type="submit" onclick="return submitSigEE()"
-                                    class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Signer</button>
+                            <button type="submit" x-bind:disabled="!documentsConsulted" onclick="return submitSigEE()"
+                                    class="ml-auto bg-salti-yellow text-black font-semibold px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                                Signer
+                            </button>
                         </div>
+                        <p x-show="!documentsConsulted" class="text-xs text-orange-600 mt-2">⚠ Cochez la case ci-dessus pour activer la signature.</p>
                     </form>
                 </div>
             @endif
         @endif
 
         @if($pdp->signed_by_prestataire_at)
-            <div class="bg-green-50 border border-green-200 text-green-800 p-4 rounded">
+            <div class="bg-green-50 border border-green-200 text-green-800 p-4 rounded mb-6">
                 ✓ Vous avez signé le {{ $pdp->signed_by_prestataire_at->format('d/m/Y à H:i') }}
+                @if($pdp->status === 'signed')
+                    — Le PDP est <strong>entièrement signé</strong> par les deux parties.
+                @elseif($pdp->status === 'awaiting_signatures')
+                    — En attente de la signature SALTI.
+                @endif
+            </div>
+        @endif
+
+        {{-- Récap documents téléchargeables : visible dès la soumission --}}
+        @if(in_array($pdp->status, ['awaiting_validation', 'awaiting_signatures', 'signed', 'archived']) || $pdp->signed_by_prestataire_at)
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+                <h2 class="font-semibold mb-1">📁 Vos documents</h2>
+                <p class="text-sm text-gray-600 mb-4">
+                    Conservez ces documents pour vos archives. Vous pouvez y revenir à tout moment via ce lien.
+                </p>
+                <ul class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                    {{-- Le PDP --}}
+                    <li class="flex items-center justify-between gap-3 px-4 py-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-2xl flex-shrink-0">📋</span>
+                            <div class="min-w-0">
+                                <div class="font-medium text-sm truncate">Plan de Prévention</div>
+                                <div class="text-xs text-gray-500">
+                                    @if($pdp->status === 'signed' || $pdp->status === 'archived')
+                                        Signé par les 2 parties — version finale
+                                    @elseif($pdp->signed_by_prestataire_at)
+                                        Signé de votre côté — en attente SALTI
+                                    @else
+                                        Version en cours
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{{ route('prestataire.download-main-pdp', $token) }}" target="_blank"
+                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
+                            📥 Télécharger
+                        </a>
+                    </li>
+
+                    {{-- Plan d'accès agence --}}
+                    @if($pdp->agency?->access_plan_path && ($data['documents_remis_ee']['plan_acces'] ?? false))
+                        <li class="flex items-center justify-between gap-3 px-4 py-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-2xl flex-shrink-0">🏢</span>
+                                <div class="min-w-0">
+                                    <div class="font-medium text-sm truncate">Plan d'accès / circulation</div>
+                                    <div class="text-xs text-gray-500">Agence {{ $pdp->agency->city ?? $pdp->agency->name }}</div>
+                                </div>
+                            </div>
+                            <a href="{{ route('prestataire.download-plan-acces', $token) }}" target="_blank"
+                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
+                                📥 Télécharger
+                            </a>
+                        </li>
+                    @endif
+
+                    {{-- Permis feu --}}
+                    @if($data['documents_remis_ee']['permis_feu'] ?? false)
+                        <li class="flex items-center justify-between gap-3 px-4 py-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-2xl flex-shrink-0">🔥</span>
+                                <div class="min-w-0">
+                                    <div class="font-medium text-sm truncate">Permis feu</div>
+                                    <div class="text-xs text-gray-500">Pré-rempli — formulaire PR0103-bis</div>
+                                </div>
+                            </div>
+                            <a href="{{ route('prestataire.download-permis-feu', $token) }}" target="_blank"
+                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
+                                📥 Télécharger
+                            </a>
+                        </li>
+                    @endif
+
+                    {{-- Convention de prêt --}}
+                    @if($data['documents_remis_ee']['convention_pret'] ?? false)
+                        <li class="flex items-center justify-between gap-3 px-4 py-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-2xl flex-shrink-0">📋</span>
+                                <div class="min-w-0">
+                                    <div class="font-medium text-sm truncate">Convention de prêt de matériel</div>
+                                    <div class="text-xs text-gray-500">Pré-remplie — formulaire PR0102</div>
+                                </div>
+                            </div>
+                            <a href="{{ route('prestataire.download-convention-pret', $token) }}" target="_blank"
+                               class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">
+                                📥 Télécharger
+                            </a>
+                        </li>
+                    @endif
+                </ul>
+
+                @if(! $pdp->signed_by_prestataire_at)
+                    <p class="text-xs text-gray-500 mt-3">
+                        💡 Vous pourrez aussi imprimer ces documents, les remplir manuellement et les ré-uploader si vous préférez la version papier.
+                    </p>
+                @endif
             </div>
         @endif
     </div>
@@ -658,43 +856,48 @@
         return true;
     }
 
-    // Drag & drop upload
-    const dropzone = document.getElementById('dropzone');
-    const dropzoneInput = document.getElementById('dropzone-input');
-    const filesList = document.getElementById('files-list');
+    // Drag & drop upload : on supporte plusieurs dropzones (type-aware)
+    document.querySelectorAll('[data-dropzone]').forEach(dz => {
+        const type = dz.getAttribute('data-dropzone');
+        const input = dz.querySelector(`[data-dz-input="${type}"]`);
+        if (! input) return;
 
-    if (dropzone) {
-        dropzone.addEventListener('click', () => dropzoneInput.click());
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-salti-yellow', 'bg-salti-yellow/10'); });
-        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-salti-yellow', 'bg-salti-yellow/10'));
-        dropzone.addEventListener('drop', (e) => {
+        dz.addEventListener('click', (e) => {
+            // Évite que le clic sur le label parent re-trigger
+            if (e.target.tagName === 'INPUT') return;
+            input.click();
+        });
+        dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('border-salti-yellow', 'bg-salti-yellow/10'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('border-salti-yellow', 'bg-salti-yellow/10'));
+        dz.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropzone.classList.remove('border-salti-yellow', 'bg-salti-yellow/10');
-            for (const file of e.dataTransfer.files) {
-                uploadFile(file);
-            }
+            dz.classList.remove('border-salti-yellow', 'bg-salti-yellow/10');
+            for (const file of e.dataTransfer.files) uploadFile(file, type);
         });
-        dropzoneInput.addEventListener('change', () => {
-            for (const file of dropzoneInput.files) uploadFile(file);
-            dropzoneInput.value = '';
+        input.addEventListener('change', () => {
+            for (const file of input.files) uploadFile(file, type);
+            input.value = '';
         });
-    }
+    });
 
-    async function uploadFile(file) {
+    async function uploadFile(file, type = 'autre') {
         if (file.size > 10 * 1024 * 1024) {
             alert(`Le fichier "${file.name}" dépasse 10 Mo`);
             return;
         }
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('type', 'autre');
+        fd.append('type', type);
         fd.append('label', file.name);
 
-        // Petit indicateur visuel pendant l'upload
+        // Cible la liste correspondant au type pour l'indicateur de progression
+        const targetList = document.querySelector(`[data-files-list="${type}"]`)
+            || document.querySelector('[data-files-list="autre"]');
+
         const tempLine = document.createElement('div');
-        tempLine.className = 'flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm';
+        tempLine.className = 'flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs';
         tempLine.innerHTML = `<span>⏳</span><span>Upload en cours : ${file.name}</span>`;
-        filesList.appendChild(tempLine);
+        targetList.appendChild(tempLine);
 
         try {
             const r = await fetch(`/p/${TOKEN}/upload`, {
@@ -706,27 +909,38 @@
             tempLine.remove();
             if (d.error) { alert(d.error); return; }
 
-            // Affiche la nouvelle ligne
+            // Construit la ligne dans la bonne section
             const line = document.createElement('div');
             line.setAttribute('data-doc-id', d.id);
-            line.className = 'flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded';
-            const safeName = document.createElement('span');
-            safeName.textContent = d.filename;
+            const isMini = type !== 'autre';
+            line.className = isMini
+                ? 'flex items-center justify-between gap-3 p-2 bg-gray-50 border border-gray-200 rounded'
+                : 'flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded';
             line.innerHTML = `
                 <div class="flex items-center gap-2 min-w-0 flex-1">
-                    <span class="text-xl shrink-0">📄</span>
+                    <span class="${isMini ? 'text-lg' : 'text-xl'} shrink-0">📄</span>
                     <div class="min-w-0">
-                        <div class="text-sm font-medium truncate" data-name></div>
-                        <div class="text-xs text-gray-500">${(d.size / 1024).toFixed(0)} Ko · ${d.type}</div>
+                        <div class="${isMini ? 'text-xs' : 'text-sm'} font-medium truncate" data-name></div>
+                        <div class="text-xs text-gray-500">${(d.size / 1024).toFixed(0)} Ko</div>
                     </div>
                 </div>
                 <div class="flex gap-2 shrink-0">
-                    <a href="${d.download_url}" class="text-sm text-blue-600 hover:underline">Voir</a>
-                    <button type="button" data-delete-btn class="text-sm text-red-600 hover:underline">Supprimer</button>
+                    <a href="${d.download_url}" class="${isMini ? 'text-xs' : 'text-sm'} text-blue-600 hover:underline">Voir</a>
+                    <button type="button" data-delete-btn class="${isMini ? 'text-xs' : 'text-sm'} text-red-600 hover:underline">Supprimer</button>
                 </div>`;
             line.querySelector('[data-name]').textContent = d.filename;
             line.querySelector('[data-delete-btn]').addEventListener('click', () => deleteDoc(d.id));
-            filesList.appendChild(line);
+            targetList.appendChild(line);
+
+            // Coche automatiquement la case correspondante si demandé par SALTI
+            if (type !== 'autre') {
+                const cbPath = type === 'habilitation' ? 'documents_remis_salti.habilitations' : 'documents_remis_salti.' + type;
+                const cb = document.querySelector(`[data-cb-path="${cbPath}"]`);
+                if (cb && ! cb.checked) {
+                    cb.checked = true;
+                    cb.dispatchEvent(new Event('change'));
+                }
+            }
         } catch (err) {
             tempLine.remove();
             alert('Erreur lors de l\'upload : '+err.message);
