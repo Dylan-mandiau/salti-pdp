@@ -28,6 +28,14 @@ class PdfAnnexService
 
     /**
      * Liste les annexes à attacher en fonction de l'état du PDP.
+     *
+     * Note : le Plan d'accès agence n'est PAS attaché au PDF final pour 2 raisons :
+     *  - SALTI a déjà ces plans en local
+     *  - Beaucoup de plans d'accès sont des PDF générés par des outils modernes
+     *    qui utilisent une compression que la version libre de FPDI ne sait pas
+     *    importer (erreur "PDF document probably uses a compression technique...")
+     * Le presta y accède via le bouton dédié dans son récap "Vos documents".
+     *
      * @return array<int, array{path: string, label: string, type: string}>
      */
     public function listAnnexes(Pdp $pdp): array
@@ -35,16 +43,7 @@ class PdfAnnexService
         $annexes = [];
         $data = $pdp->data ?? [];
 
-        // 1. Plan d'accès — spécifique à l'agence, si la case est cochée
-        if (! empty($data['documents_remis_ee']['plan_acces']) && $pdp->agency?->access_plan_path) {
-            $annexes[] = [
-                'path' => storage_path('app/'.$pdp->agency->access_plan_path),
-                'label' => 'Plan d\'accès / circulation — '.($pdp->agency->city ?? $pdp->agency->name),
-                'type' => 'agency',
-            ];
-        }
-
-        // 2. Permis feu pré-rempli (généré dynamiquement) si case cochée
+        // 1. Permis feu pré-rempli (généré dynamiquement) si case cochée
         if (! empty($data['documents_remis_ee']['permis_feu'])) {
             $path = $this->docsGenerator->generatePermisFeu($pdp);
             $annexes[] = [
@@ -54,7 +53,7 @@ class PdfAnnexService
             ];
         }
 
-        // 3. Convention de prêt pré-remplie (générée) si case cochée + matériels listés
+        // 2. Convention de prêt pré-remplie (générée) si case cochée + matériels listés
         if (! empty($data['documents_remis_ee']['convention_pret'])) {
             $hasMateriels = collect($data['materiels_pretes'] ?? [])
                 ->filter(fn($m) => ! empty($m['designation']))->isNotEmpty();
@@ -68,7 +67,7 @@ class PdfAnnexService
             }
         }
 
-        // 4. Tous les fichiers uploadés par le prestataire (CACES, habilitations, autres)
+        // 3. Tous les fichiers uploadés par le prestataire (CACES, habilitations, autres)
         foreach ($pdp->documents()->where('uploaded_by', 'prestataire')->get() as $doc) {
             $annexes[] = [
                 'path' => storage_path('app/'.$doc->path),
@@ -133,6 +132,8 @@ class PdfAnnexService
 
     /**
      * Page de garde listant les annexes.
+     * Pas d'emojis : la police helvetica de TCPDF ne les supporte pas
+     * et les afficherait sous forme de '?'.
      */
     private function addAnnexCover(Fpdi $pdf, array $annexes): void
     {
@@ -150,13 +151,13 @@ class PdfAnnexService
         foreach ($annexes as $i => $annex) {
             $num = $i + 1;
             $typeLabel = match ($annex['type']) {
-                'agency' => '🏢 Agence',
-                'global' => '🏛 SALTI (global)',
-                'prestataire' => '👷 Prestataire',
-                default => '📄',
+                'generated' => 'SALTI',
+                'prestataire' => 'Prestataire',
+                default => '',
             };
             $pdf->Cell(15, 6, $num.'.', 0, 0);
-            $pdf->Cell(0, 6, $typeLabel.'  —  '.$annex['label'], 0, 1);
+            $prefix = $typeLabel ? '['.$typeLabel.']  '.$annex['label'] : $annex['label'];
+            $pdf->Cell(0, 6, $prefix, 0, 1);
         }
     }
 
@@ -173,22 +174,28 @@ class PdfAnnexService
                 $pdf->AddPage($size['width'] > $size['height'] ? 'L' : 'P', [$size['width'], $size['height']]);
                 $pdf->useTemplate($tplIdx);
 
-                // Petit titre en bas (sauf si page paysage où on met en haut)
+                // Petit titre en haut, en italique discret (sans emoji)
                 if ($i === 1) {
                     $pdf->SetFont('helvetica', 'I', 8);
                     $pdf->SetTextColor(120);
                     $pdf->SetXY(5, 5);
-                    $pdf->Cell(0, 5, '📎 Annexe : '.$label, 0, 0);
+                    $pdf->Cell(0, 5, 'Annexe : '.$label, 0, 0);
                     $pdf->SetTextColor(0);
                 }
             }
         } catch (\Throwable $e) {
-            // PDF corrompu ou protégé : ajout d'une page d'erreur plutôt que de tout planter
+            // PDF corrompu, protégé ou utilisant une compression non supportée :
+            // page d'erreur lisible, sans message technique en anglais.
             $pdf->AddPage('P', 'A4');
             $pdf->SetFont('helvetica', 'B', 14);
             $pdf->Cell(0, 10, 'Annexe : '.$label, 0, 1);
+            $pdf->Ln(4);
             $pdf->SetFont('helvetica', '', 10);
-            $pdf->Cell(0, 8, '⚠ PDF non importable : '.$e->getMessage(), 0, 1);
+            $pdf->MultiCell(0, 6,
+                "Ce document n'a pas pu être intégré au PDP final.\n".
+                "Il reste disponible séparément dans la liste des documents du PDP.",
+                0, 'L'
+            );
         }
     }
 
@@ -212,7 +219,7 @@ class PdfAnnexService
             $pdf->Image($imgPath, 10, 25, $finalW, $finalH);
         } catch (\Throwable $e) {
             $pdf->SetFont('helvetica', '', 10);
-            $pdf->Cell(0, 8, '⚠ Image non insérable : '.$e->getMessage(), 0, 1);
+            $pdf->Cell(0, 8, "Image non insérable.", 0, 1);
         }
     }
 }
