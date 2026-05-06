@@ -253,38 +253,14 @@
                 @endif
             </p>
 
-            {{-- Encadré "Habilitations recommandées" : visible uniquement si SALTI a coché
-                 au moins un risque qui mappe vers des habilitations --}}
-            @if(! empty($recommendedCodes))
-                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div class="text-sm font-semibold text-blue-900 mb-2">
-                        💡 Habilitations recommandées d'après les risques cochés par SALTI
-                    </div>
-                    <p class="text-xs text-blue-800 mb-2">
-                        Cliquez sur une habilitation pour l'ajouter au salarié de votre choix.
-                    </p>
-                    <div class="flex flex-wrap gap-1.5" id="hab-recommendations">
-                        @foreach($recommendedCodes as $code)
-                            @php $hab = $habCatalog[$code] ?? null; @endphp
-                            @if($hab)
-                                <button type="button"
-                                        onclick="addRecommendedHab('{{ $code }}', @js($hab[0]))"
-                                        class="bg-white border border-blue-300 hover:border-blue-500 hover:bg-blue-100 text-blue-900 text-xs px-2 py-1 rounded transition"
-                                        title="{{ $hab[1] }} — Réf : {{ $hab[2] }}">
-                                    + {{ $hab[0] }}
-                                </button>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Datalist HTML pour autocomplete des habilitations dans les inputs --}}
-            <datalist id="hab-catalog">
-                @foreach($habCatalog as $code => [$label, $cat, $ref])
-                    <option value="{{ $label }}" data-code="{{ $code }}">{{ $cat }} — {{ $label }}</option>
-                @endforeach
-            </datalist>
+            {{-- Catalogue d'habilitations groupées par catégorie pour les <select> --}}
+            @php
+                $habByCategory = [];
+                foreach ($habCatalog as $code => [$label, $cat, $ref]) {
+                    $habByCategory[$cat][$code] = $label;
+                }
+                ksort($habByCategory);
+            @endphp
 
             {{-- Liste des salariés avec leurs habilitations --}}
             <div class="space-y-4" id="emp-list">
@@ -307,12 +283,28 @@
                         <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
                         <div class="space-y-2" data-hab-list>
                             @foreach($habList as $habItem)
+                                @php
+                                    // Détecter si l'habilitation existe dans le catalogue (sinon = saisie libre)
+                                    $isCustom = ! empty($habItem['label']) && ! collect($habCatalog)->contains(fn($h) => $h[0] === $habItem['label']);
+                                @endphp
                                 <div data-hab-line class="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200">
-                                    <input type="text" data-hab-field="label" list="hab-catalog"
-                                           value="{{ $habItem['label'] }}"
-                                           placeholder="ex. CACES R489 cat 3 (taper pour suggestions)"
-                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                                    <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
+                                    <div class="space-y-1" data-hab-input-wrap>
+                                        <select data-hab-field="select" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                                            <option value="">— Choisir une habilitation —</option>
+                                            @foreach($habByCategory as $cat => $items)
+                                                <optgroup label="{{ $cat }}">
+                                                    @foreach($items as $code => $label)
+                                                        <option value="{{ $code }}" @selected($habItem['code'] === $code)>{{ $label }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endforeach
+                                            <option value="__custom__" @selected($isCustom)>✏ Autre / saisie libre…</option>
+                                        </select>
+                                        <input type="text" data-hab-field="label" value="{{ $habItem['label'] ?? '' }}"
+                                               placeholder="Décrivez l'habilitation"
+                                               class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm {{ $isCustom ? '' : 'hidden' }}">
+                                        <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
+                                    </div>
                                     <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}"
                                            class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
                                     <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
@@ -587,54 +579,9 @@
             </div>
         @endif
 
-        {{-- Attestation de prise de connaissance — chaque salarié signe individuellement --}}
-        @if($habs->count() > 0)
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 class="font-semibold mb-2">Attestation de prise de connaissance du Plan de Prévention</h2>
-            <p class="text-sm text-gray-600 mb-4">
-                Chaque salarié intervenant doit signer ci-dessous pour attester avoir pris connaissance
-                du présent plan de prévention, des risques et des mesures associées.
-            </p>
-
-            <div class="space-y-4">
-                @foreach($habs as $iv)
-                    <div class="border border-gray-200 rounded-lg p-4" data-intervenant-id="{{ $iv->id }}">
-                        <div class="flex items-center justify-between mb-2">
-                            <div>
-                                <div class="font-medium">{{ $iv->nom_prenom }}</div>
-                                @if($iv->habilitation)
-                                    <div class="text-xs text-gray-500">{{ $iv->habilitation }}</div>
-                                @endif
-                            </div>
-                            @if($iv->signature_data)
-                                <span class="text-sm text-green-700 bg-green-50 px-3 py-1 rounded border border-green-200">
-                                    ✓ Signé le {{ $iv->date_signature?->format('d/m/Y') }}
-                                </span>
-                            @endif
-                        </div>
-
-                        @if(! $iv->signature_data)
-                            <canvas id="sig-iv-{{ $iv->id }}" class="border-2 border-dashed border-gray-300 rounded w-full bg-white" height="120"></canvas>
-                            <div class="flex gap-2 mt-2">
-                                <button type="button" onclick="clearIntervenantSig({{ $iv->id }})" class="text-sm text-gray-600">Effacer</button>
-                                <button type="button" onclick="saveIntervenantSig({{ $iv->id }})"
-                                        class="ml-auto bg-salti-yellow hover:bg-salti-yellow-dark text-black font-semibold px-4 py-2 rounded text-sm">
-                                    Signer l'attestation
-                                </button>
-                            </div>
-                        @else
-                            <div class="flex justify-center mt-2 p-3 bg-gray-50 rounded border border-gray-200">
-                                <img src="{{ $iv->signature_data }}" alt="Signature" class="max-h-20">
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-            <p class="text-xs text-gray-500 mt-3">
-                💡 Sur tablette / smartphone, le salarié peut signer directement avec son doigt ou un stylet.
-            </p>
-        </div>
-        @endif
+        {{-- L'attestation de prise de connaissance a été déplacée tout en bas de la page,
+             juste avant le bouton « Soumettre à SALTI » / la signature finale, pour que
+             le presta finisse par signer après avoir tout rempli ET avoir consulté le PDP. --}}
 
         {{-- Liste des risques standards SALTI déjà identifiés (lecture seule) --}}
         @php
@@ -714,6 +661,80 @@
                 </table>
             </div>
         </div>
+
+        {{-- ═══════════════════════════════════════════════════════════════
+             ATTESTATION FINALE — chaque salarié signe ICI, à la fin du remplissage
+             ═══════════════════════════════════════════════════════════════ --}}
+        @if($habs->count() > 0)
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <h2 class="font-semibold mb-2">📝 Attestation de prise de connaissance du Plan de Prévention</h2>
+                <p class="text-sm text-gray-600 mb-3">
+                    Chaque salarié intervenant doit signer ci-dessous pour attester avoir pris
+                    connaissance du présent plan de prévention, des risques et des mesures associées.
+                </p>
+
+                {{-- Bloc consultation du PDP : avant de signer, on doit pouvoir le lire --}}
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p class="text-sm font-medium text-blue-900 mb-2">
+                        ℹ Avant de signer, consultez le Plan de Prévention complet :
+                    </p>
+                    <a href="{{ route('prestataire.download-main-pdp', $token) }}?inline=1" target="_blank"
+                       class="inline-flex items-center gap-2 bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 text-sm font-medium px-3 py-1.5 rounded">
+                        👁 Consulter le Plan de Prévention
+                    </a>
+                    @if($data['documents_remis_ee']['permis_feu'] ?? false)
+                        <a href="{{ route('prestataire.download-permis-feu', $token) }}?inline=1" target="_blank"
+                           class="inline-flex items-center gap-2 bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 text-sm font-medium px-3 py-1.5 rounded ml-1">
+                            🔥 Voir le Permis feu
+                        </a>
+                    @endif
+                    @if($data['documents_remis_ee']['convention_pret'] ?? false)
+                        <a href="{{ route('prestataire.download-convention-pret', $token) }}?inline=1" target="_blank"
+                           class="inline-flex items-center gap-2 bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 text-sm font-medium px-3 py-1.5 rounded ml-1">
+                            📋 Voir la Convention
+                        </a>
+                    @endif
+                </div>
+
+                <div class="space-y-4">
+                    @foreach($habs as $iv)
+                        <div class="border border-gray-200 rounded-lg p-4" data-intervenant-id="{{ $iv->id }}">
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <div class="font-medium">{{ $iv->nom_prenom }}</div>
+                                    @if($iv->habilitation)
+                                        <div class="text-xs text-gray-500">{{ $iv->habilitation }}</div>
+                                    @endif
+                                </div>
+                                @if($iv->signature_data)
+                                    <span class="text-sm text-green-700 bg-green-50 px-3 py-1 rounded border border-green-200">
+                                        ✓ Signé le {{ $iv->date_signature?->format('d/m/Y') }}
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if(! $iv->signature_data)
+                                <canvas id="sig-iv-{{ $iv->id }}" class="border-2 border-dashed border-gray-300 rounded w-full bg-white" height="120"></canvas>
+                                <div class="flex gap-2 mt-2">
+                                    <button type="button" onclick="clearIntervenantSig({{ $iv->id }})" class="text-sm text-gray-600">Effacer</button>
+                                    <button type="button" onclick="saveIntervenantSig({{ $iv->id }})"
+                                            class="ml-auto bg-salti-yellow hover:bg-salti-yellow-dark text-black font-semibold px-4 py-2 rounded text-sm">
+                                        Signer l'attestation
+                                    </button>
+                                </div>
+                            @else
+                                <div class="flex justify-center mt-2 p-3 bg-gray-50 rounded border border-gray-200">
+                                    <img src="{{ $iv->signature_data }}" alt="Signature" class="max-h-20">
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-gray-500 mt-3">
+                    💡 Sur tablette / smartphone, le salarié peut signer directement avec son doigt ou un stylet.
+                </p>
+            </div>
+        @endif
 
         @if(! $isLocked && ! $pdp->signed_by_prestataire_at)
             @if(in_array($pdp->status, ['awaiting_prestataire', 'corrections_requested', 'awaiting_validation']))
@@ -919,42 +940,89 @@
     const TOKEN = @json($token);
     const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
-    // Auto-save : déclenche sur tout input/change des éléments balisés
+    // Auto-save : déclenche sur input/change/blur — temps réel agressif
+    // (300ms de debounce + blur instantané pour éviter la perte de données
+    // quand le presta change de page ou ferme l'onglet)
     let saveTimer;
     function attachAutoSave(el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
             clearTimeout(saveTimer);
-            saveTimer = setTimeout(autoSave, 800);
+            saveTimer = setTimeout(autoSave, 300);
         }));
+        el.addEventListener('blur', () => {
+            clearTimeout(saveTimer);
+            autoSave();
+        });
     }
-    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-emp-card] input, [data-ar-row]').forEach(attachAutoSave);
+    document.querySelectorAll('[data-path], [data-cb-path], .ee-radio, [data-emp-card] input, [data-emp-card] select, [data-ar-row]').forEach(attachAutoSave);
 
-    // ─── Catalogue habilitations (mirror de Pdp::HABILITATIONS_LIST) ─────────
+    // ─── Catalogue habilitations groupées par catégorie ─────────────────────
     const HAB_CATALOG = @json(\App\Models\Pdp::HABILITATIONS_LIST);
+    const HAB_BY_CATEGORY = {};
+    Object.entries(HAB_CATALOG).forEach(([code, [label, cat]]) => {
+        if (!HAB_BY_CATEGORY[cat]) HAB_BY_CATEGORY[cat] = {};
+        HAB_BY_CATEGORY[cat][code] = label;
+    });
 
-    /** Construit une ligne <habilitation> (label + validity + bouton retirer) */
+    /** Construit le HTML d'options groupées (optgroup) pour le select habilitation */
+    function buildHabOptionsHtml(selectedCode = '') {
+        let html = '<option value="">— Choisir une habilitation —</option>';
+        Object.keys(HAB_BY_CATEGORY).sort().forEach(cat => {
+            html += `<optgroup label="${cat}">`;
+            Object.entries(HAB_BY_CATEGORY[cat]).forEach(([code, label]) => {
+                const sel = code === selectedCode ? 'selected' : '';
+                html += `<option value="${code}" ${sel}>${label}</option>`;
+            });
+            html += '</optgroup>';
+        });
+        html += '<option value="__custom__">✏ Autre / saisie libre…</option>';
+        return html;
+    }
+
+    /** Quand le select change : si custom → affiche l'input texte, sinon → cache + auto-fill label depuis catalogue */
+    function wireHabLineSelect(line) {
+        const select = line.querySelector('[data-hab-field="select"]');
+        const labelInput = line.querySelector('[data-hab-field="label"]');
+        const codeInput = line.querySelector('[data-hab-field="code"]');
+        if (! select) return;
+        select.addEventListener('change', () => {
+            const v = select.value;
+            if (v === '__custom__') {
+                labelInput.classList.remove('hidden');
+                labelInput.focus();
+                codeInput.value = '';
+            } else if (v && HAB_CATALOG[v]) {
+                labelInput.value = HAB_CATALOG[v][0]; // libellé canonique
+                labelInput.classList.add('hidden');
+                codeInput.value = v;
+            } else {
+                labelInput.value = '';
+                labelInput.classList.add('hidden');
+                codeInput.value = '';
+            }
+        });
+    }
+    // Wire les selects existants au chargement
+    document.querySelectorAll('[data-hab-line]').forEach(wireHabLineSelect);
+
+    /** Construit une ligne <habilitation> (select + saisie libre + validity + bouton ✕) */
     function buildHabLineEl(code = '', label = '', validity = '') {
         const wrap = document.createElement('div');
         wrap.setAttribute('data-hab-line', '');
         wrap.className = 'grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200';
         wrap.innerHTML = `
-            <input type="text" data-hab-field="label" list="hab-catalog" value="${label}" placeholder="ex. CACES R489 cat 3 (taper pour suggestions)" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-            <input type="hidden" data-hab-field="code" value="${code}">
+            <div class="space-y-1" data-hab-input-wrap>
+                <select data-hab-field="select" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm">
+                    ${buildHabOptionsHtml(code)}
+                </select>
+                <input type="text" data-hab-field="label" value="${label}" placeholder="Décrivez l'habilitation" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm hidden">
+                <input type="hidden" data-hab-field="code" value="${code}">
+            </div>
             <input type="date" data-hab-field="validity" value="${validity}" class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
             <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
         `;
-        wrap.querySelectorAll('input').forEach(attachAutoSave);
-        // Auto-fill code quand l'utilisateur choisit un label depuis le datalist
-        const labelInput = wrap.querySelector('[data-hab-field="label"]');
-        const codeInput = wrap.querySelector('[data-hab-field="code"]');
-        labelInput.addEventListener('input', () => {
-            // Cherche un code matchant le label tapé
-            const v = labelInput.value;
-            codeInput.value = '';
-            for (const [c, [lbl]] of Object.entries(HAB_CATALOG)) {
-                if (lbl === v) { codeInput.value = c; break; }
-            }
-        });
+        wrap.querySelectorAll('input, select').forEach(attachAutoSave);
+        wireHabLineSelect(wrap);
         return wrap;
     }
 
@@ -1019,35 +1087,6 @@
         }
         clearTimeout(saveTimer);
         saveTimer = setTimeout(autoSave, 200);
-    };
-
-    /** Ajoute une habilitation recommandée (depuis l'encadré bleu) au salarié choisi par l'utilisateur. */
-    window.addRecommendedHab = function(code, label) {
-        const cards = document.querySelectorAll('[data-emp-card]');
-        if (cards.length === 0) {
-            alert('Ajoutez d\'abord un salarié avant d\'attribuer une habilitation.');
-            return;
-        }
-        // Construit un prompt rapide listant les salariés
-        const names = Array.from(cards).map((c, i) => {
-            const n = c.querySelector('[data-emp-field="nom_prenom"]').value.trim();
-            return `${i + 1}. ${n || '(sans nom)'}`;
-        });
-        const choice = prompt(`Ajouter "${label}" à quel salarié ?\n\n${names.join('\n')}\n\nTapez le numéro (1, 2, 3…) :`, '1');
-        if (!choice) return;
-        const idx = parseInt(choice, 10) - 1;
-        if (isNaN(idx) || idx < 0 || idx >= cards.length) return;
-        const card = cards[idx];
-        const list = card.querySelector('[data-hab-list]');
-        // Si la 1re ligne est vide, on l'utilise plutôt que d'en ajouter une nouvelle
-        const first = list.querySelector('[data-hab-line]');
-        const target = (first && !first.querySelector('[data-hab-field="label"]').value.trim())
-            ? first
-            : (list.appendChild(buildHabLineEl()));
-        target.querySelector('[data-hab-field="label"]').value = label;
-        target.querySelector('[data-hab-field="code"]').value = code;
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(autoSave, 300);
     };
 
     function renumberEmpCards() {
