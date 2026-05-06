@@ -230,12 +230,12 @@
 
 <div class="section-title" style="margin-top:8px">SURVEILLANCE DE SÉCURITÉ</div>
 <p>● <strong>Pendant les travaux ;</strong></p>
-<p>nom : <span class="filled">{{ $val($pf['surveillance_pendant'] ?? null) }}</span> ; visa : ________</p>
+<p>nom : <span class="filled">{{ $val($pf['surveillance_pendant'] ?? null) }}</span> ; visa : <span class="filled">{{ $val($pf['surveillance_pendant_visa'] ?? null) }}</span></p>
 <p style="margin-top:4px">● <strong>Après les travaux à partir de</strong>
     <span class="filled">{{ $val($pf['surveillance_apres_de'] ?? null) }}</span> h
     <strong>jusqu'à</strong>
     <span class="filled">{{ $val($pf['surveillance_apres_a'] ?? null) }}</span> h ;</p>
-<p>nom : <span class="filled">{{ $val($pf['surveillance_apres_nom'] ?? null) }}</span> ; visa : ________</p>
+<p>nom : <span class="filled">{{ $val($pf['surveillance_apres_nom'] ?? null) }}</span> ; visa : <span class="filled">{{ $val($pf['surveillance_apres_visa'] ?? null) }}</span></p>
 
 <div class="section-title" style="margin-top:8px">ALERTE EN CAS D'INCENDIE OU D'ACCIDENT - EMPLACEMENT DES MOYENS D'ALERTE</div>
 <p class="field-line filled" style="min-height:14px">{{ $val($pf['alerte_emplacement'] ?? null) }}</p>

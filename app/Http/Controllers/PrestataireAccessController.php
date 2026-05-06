@@ -281,6 +281,10 @@ class PrestataireAccessController extends Controller
 
     /**
      * Signature du prestataire.
+     *
+     * Si le Permis feu est requis sur ce PDP, la signature et la date de
+     * délivrance sont automatiquement reportées sur le Permis feu — pas
+     * besoin pour le presta de signer deux fois.
      */
     public function sign(string $token, Request $request): RedirectResponse
     {
@@ -294,6 +298,15 @@ class PrestataireAccessController extends Controller
         $data = $pdp->data;
         $data['signature_ee'] = $request->input('signature_data');
         $data['signature_ee_fonction'] = $request->input('signature_fonction');
+
+        // Auto-report sur le Permis feu (signature de l'employeur + date de délivrance)
+        if (! empty($data['documents_remis_ee']['permis_feu'])) {
+            $data['permis_feu']['signed_by_employer'] = $request->input('signature_data');
+            // On respecte une date_delivrance déjà saisie manuellement par le presta
+            if (empty($data['permis_feu']['date_delivrance'])) {
+                $data['permis_feu']['date_delivrance'] = now()->toDateString();
+            }
+        }
 
         $pdp->update([
             'data' => $data,

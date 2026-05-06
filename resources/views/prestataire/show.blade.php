@@ -467,14 +467,35 @@
                         </div>
                     </details>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    {{-- Surveillance pendant --}}
+                    <div class="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3 mt-3">
                         <div>
-                            <label class="block text-sm font-medium mb-1">Surveillance pendant les travaux (nom)</label>
+                            <label class="block text-sm font-medium mb-1">Surveillance pendant les travaux — Nom</label>
                             <input type="text" data-path="permis_feu.surveillance_pendant" value="{{ $pf['surveillance_pendant'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Surveillance après travaux (nom)</label>
+                            <label class="block text-sm font-medium mb-1">Visa</label>
+                            <input type="text" data-path="permis_feu.surveillance_pendant_visa" value="{{ $pf['surveillance_pendant_visa'] ?? '' }}" placeholder="Initiales" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                    </div>
+
+                    {{-- Surveillance après --}}
+                    <div class="grid grid-cols-1 md:grid-cols-[1fr_80px_80px_140px] gap-3 mt-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Surveillance après les travaux — Nom</label>
                             <input type="text" data-path="permis_feu.surveillance_apres_nom" value="{{ $pf['surveillance_apres_nom'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">À partir de (h)</label>
+                            <input type="text" data-path="permis_feu.surveillance_apres_de" value="{{ $pf['surveillance_apres_de'] ?? '' }}" placeholder="17" maxlength="5" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Jusqu'à (h)</label>
+                            <input type="text" data-path="permis_feu.surveillance_apres_a" value="{{ $pf['surveillance_apres_a'] ?? '' }}" placeholder="19" maxlength="5" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Visa</label>
+                            <input type="text" data-path="permis_feu.surveillance_apres_visa" value="{{ $pf['surveillance_apres_visa'] ?? '' }}" placeholder="Initiales" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
                         </div>
                     </div>
 
@@ -491,6 +512,20 @@
                         <div>
                             <label class="block text-sm font-medium mb-1">Téléphone</label>
                             <input type="tel" data-path="permis_feu.contact_accident_tel" value="{{ $pf['contact_accident_tel'] ?? '' }}" maxlength="20" class="pdp-tel-input w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                        </div>
+                    </div>
+
+                    {{-- Date de délivrance + info signature --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Permis feu délivré le</label>
+                            <input type="date" data-path="permis_feu.date_delivrance" value="{{ $pf['date_delivrance'] ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                            <p class="text-xs text-gray-500 mt-1">Auto-rempli avec la date du jour quand vous signerez le PDP.</p>
+                        </div>
+                        <div class="flex items-end">
+                            <p class="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2">
+                                ✍ <strong>Signature de l'employeur :</strong> votre signature du Plan de Prévention sera automatiquement reportée sur le Permis feu — pas besoin de signer deux fois.
+                            </p>
                         </div>
                     </div>
 
