@@ -13,16 +13,30 @@
     $materiels = collect($data['materiels_pretes'] ?? [])->filter(fn($m) => ! empty($m['designation']));
     $duree_value = $data['operation']['duree_value'] ?? null;
     $duree_unit = $data['operation']['duree_unit'] ?? null;
+
+    // Helper de conversion en jours
+    $toDays = function ($value, $unit) {
+        return match (strtolower((string) $unit)) {
+            'jour', 'jours' => (string) (int) $value,
+            'semaine', 'semaines' => (string) ((int) $value * 7),
+            'mois' => (string) ((int) $value * 30),
+            'an', 'ans', 'année', 'années' => (string) ((int) $value * 365),
+            default => trim($value.' '.$unit),
+        };
+    };
+
     // Convention typiquement en jours — on convertit
     $dureeJours = '';
     if ($duree_value && $duree_unit) {
-        $dureeJours = match ($duree_unit) {
-            'jour', 'jours' => $duree_value,
-            'semaine', 'semaines' => (int) $duree_value * 7,
-            'mois' => (int) $duree_value * 30,
-            'an', 'ans' => (int) $duree_value * 365,
-            default => $duree_value.' '.$duree_unit,
-        };
+        $dureeJours = $toDays($duree_value, $duree_unit);
+    } elseif (! empty($data['operation']['duree'])) {
+        // Fallback : la durée est stockée en string libre (ex: "2 jours", "3 semaines")
+        // On parse pour extraire chiffre + unité.
+        if (preg_match('/(\d+)\s*(jour|jours|semaine|semaines|mois|an|ans|année|années)/i', $data['operation']['duree'], $m)) {
+            $dureeJours = $toDays($m[1], $m[2]);
+        } else {
+            $dureeJours = $data['operation']['duree'];
+        }
     }
 @endphp
 <!DOCTYPE html>

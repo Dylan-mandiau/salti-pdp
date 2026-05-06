@@ -133,6 +133,25 @@ class PdpTestGenerate extends Command
         $data['permis_feu']['contact_accident_tel'] = '05.56.99.99.99';
         $data['permis_feu']['date_delivrance'] = '15/05/2026';
 
+        // Quelques lignes Mise en sécurité remplies (pour tester le rendu PDF)
+        $data['permis_feu']['mise_en_securite']['deplacement_combustibles'] = [
+            'a_faire' => 'oui', 'qui' => 'Tony BERNARD', 'fait' => 'oui', 'fait_le' => '2026-05-15',
+        ];
+        $data['permis_feu']['mise_en_securite']['delimitation_balisage'] = [
+            'a_faire' => 'oui', 'qui' => 'Karim AMRANI', 'fait' => 'non', 'fait_le' => null,
+        ];
+        $data['permis_feu']['mise_en_securite']['consignation'] = [
+            'a_faire' => 'non', 'qui' => null, 'fait' => null, 'fait_le' => null,
+        ];
+
+        // Moyens de prévention
+        $data['permis_feu']['moyens_prevention']['lutte_incendie'] = [
+            'a_faire' => 'oui', 'qui' => 'Pierre MARTIN', 'fait' => 'oui', 'fait_le' => '2026-05-15',
+        ];
+        $data['permis_feu']['moyens_prevention']['ventilation'] = [
+            'a_faire' => 'non', 'qui' => null, 'fait' => null, 'fait_le' => null,
+        ];
+
         $pdp = Pdp::create([
             'agency_id' => $agency->id,
             'prestataire_id' => $prestataire->id,

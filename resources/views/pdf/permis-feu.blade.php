@@ -14,6 +14,19 @@
         catch (\Throwable $e) { return $v; }
     };
     $intervenants = $pdp->intervenants;
+
+    // Helper rendu d'une ligne du tableau Mise en sécurité / Moyens de prévention
+    $row = fn(array $r) => [
+        'a_faire' => $r['a_faire'] ?? null,
+        'qui' => $r['qui'] ?? null,
+        'fait' => $r['fait'] ?? null,
+        'fait_le' => $r['fait_le'] ?? null,
+    ];
+
+    // Cellule "OUI / NON" : coche selon la valeur
+    $oui_non = function($v) use ($cb) {
+        return $cb($v === 'oui').' OUI &nbsp; '.$cb($v === 'non').' NON';
+    };
 @endphp
 <!DOCTYPE html>
 <html lang="fr">
@@ -67,7 +80,10 @@
                 @php
                     $dv = $data['operation']['duree_value'] ?? null;
                     $du = $data['operation']['duree_unit'] ?? null;
-                    echo $dv && $du ? trim($dv.' '.$du) : '';
+                    $duree_aff = $dv && $du
+                        ? trim($dv.' '.$du)
+                        : ($data['operation']['duree'] ?? '');
+                    echo $duree_aff;
                 @endphp
             </p>
         </td>
@@ -153,27 +169,18 @@
         </tr>
     </thead>
     <tbody>
-        @foreach([
-            'Déplacement/Éloignement à plus de 10 mètres des substances combustibles',
-            'Délimitation ou séparation et balisage de la zone d\'intervention',
-            'Protection des éléments et/ou objets n\'ayant pas pu être déplacés',
-            'Consignation (source d\'énergie, flux de produit...)',
-            'Vidange – nettoyage – dépoussiérage',
-            'Dégazage (tuyauterie, cuve, citerne...)',
-            'Remplissage/inertage (eau, gaz…)',
-            'Isolation des tuyauteries',
-            'Démontage de tuyauterie',
-            'Colmatage des interstices',
-            'Fermeture (appareil, caniveaux, fosses...)',
-            'Isolation de la boucle de détection',
-            'Isolation du système d\'extinction',
-            'Modification du zonage ATEX existant suite aux mesures de mise en sécurité prises',
-        ] as $item)
+        @foreach(\App\Models\Pdp::PERMIS_FEU_MISE_EN_SECURITE as $slug => $label)
+            @php $r = $row($pf['mise_en_securite'][$slug] ?? []); @endphp
             <tr>
-                <td>{{ $item }}</td>
-                <td style="text-align:center">○ ○</td>
-                <td>&nbsp;</td>
-                <td style="text-align:center">○ ○</td>
+                <td>{{ $label }}</td>
+                <td style="text-align:center;font-size:8.5pt">{!! $oui_non($r['a_faire']) !!}</td>
+                <td class="filled">{{ $val($r['qui']) }}</td>
+                <td style="text-align:center;font-size:8.5pt">
+                    {!! $oui_non($r['fait']) !!}
+                    @if($r['fait'] === 'oui' && $r['fait_le'])
+                        <br><span class="filled">{{ $date($r['fait_le']) }}</span>
+                    @endif
+                </td>
             </tr>
         @endforeach
     </tbody>
@@ -192,24 +199,32 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>
-                <strong>Protection des abords</strong>
-                <p>• écrans, panneaux<br>• bâches ignifugées<br>• eau (arrosage)<br>• sable<br>• absorbant</p>
-            </td>
-            <td style="text-align:center">○ ○ × 5</td><td>&nbsp;</td><td style="text-align:center">○ ○ × 5</td>
-        </tr>
-        <tr><td>Ventilation mécanique forcée</td><td style="text-align:center">○ ○</td><td>&nbsp;</td><td style="text-align:center">○ ○</td></tr>
-        <tr>
-            <td><strong>Contrôle d'atmosphère</strong><p>• explosimétrie<br>• teneur en oxygène<br>• détecteur de gaz</p></td>
-            <td style="text-align:center">○ ○ × 3</td><td>&nbsp;</td><td style="text-align:center">○ ○ × 3</td>
-        </tr>
-        <tr>
-            <td><strong>Moyens de lutte contre l'incendie :</strong> <em>en plus de ceux dévoués normalement à cet effet</em>
-                <p>• extincteur ; nombre : ____ , type : _____<br>• RIA<br>• lance à incendie</p></td>
-            <td style="text-align:center">○ ○ × 3</td><td>&nbsp;</td><td style="text-align:center">○ ○ × 3</td>
-        </tr>
-        <tr><td>Utilisation de matériel spécifique pour travailler en zone ATEX (marquage…)</td><td style="text-align:center">○ ○</td><td>&nbsp;</td><td style="text-align:center">○ ○</td></tr>
+        @php
+            $mp_details = [
+                'protection_abords' => ['<strong>Protection des abords</strong>', '• écrans, panneaux<br>• bâches ignifugées<br>• eau (arrosage)<br>• sable<br>• absorbant'],
+                'ventilation' => ['Ventilation mécanique forcée', null],
+                'controle_atmosphere' => ['<strong>Contrôle d\'atmosphère</strong>', '• explosimétrie<br>• teneur en oxygène<br>• détecteur de gaz'],
+                'lutte_incendie' => ['<strong>Moyens de lutte contre l\'incendie :</strong> <em>en plus de ceux dévoués normalement à cet effet</em>', '• extincteur<br>• RIA<br>• lance à incendie'],
+                'materiel_atex' => ['Utilisation de matériel spécifique pour travailler en zone ATEX (marquage…)', null],
+            ];
+        @endphp
+        @foreach($mp_details as $slug => [$title, $sub])
+            @php $r = $row($pf['moyens_prevention'][$slug] ?? []); @endphp
+            <tr>
+                <td>
+                    {!! $title !!}
+                    @if($sub)<p>{!! $sub !!}</p>@endif
+                </td>
+                <td style="text-align:center;font-size:8.5pt">{!! $oui_non($r['a_faire']) !!}</td>
+                <td class="filled">{{ $val($r['qui']) }}</td>
+                <td style="text-align:center;font-size:8.5pt">
+                    {!! $oui_non($r['fait']) !!}
+                    @if($r['fait'] === 'oui' && $r['fait_le'])
+                        <br><span class="filled">{{ $date($r['fait_le']) }}</span>
+                    @endif
+                </td>
+            </tr>
+        @endforeach
     </tbody>
 </table>
 

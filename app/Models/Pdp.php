@@ -25,6 +25,39 @@ class Pdp extends Model
     public const MODE_PRESENTIEL = 'presentiel';
     public const MODE_DISTANCE = 'distance';
 
+    /**
+     * Items du tableau « Mise en sécurité » du Permis feu (PR0103-bis).
+     * Slug => libellé affiché. Utilisé à la fois par le formulaire en ligne
+     * et le template PDF pour rester en phase.
+     */
+    public const PERMIS_FEU_MISE_EN_SECURITE = [
+        'deplacement_combustibles' => 'Déplacement/Éloignement à plus de 10 mètres des substances combustibles',
+        'delimitation_balisage' => 'Délimitation ou séparation et balisage de la zone d\'intervention',
+        'protection_objets' => 'Protection des éléments et/ou objets n\'ayant pas pu être déplacés',
+        'consignation' => 'Consignation (source d\'énergie, flux de produit...)',
+        'vidange_nettoyage' => 'Vidange – nettoyage – dépoussiérage',
+        'degazage' => 'Dégazage (tuyauterie, cuve, citerne...)',
+        'remplissage_inertage' => 'Remplissage/inertage (eau, gaz…)',
+        'isolation_tuyauteries' => 'Isolation des tuyauteries',
+        'demontage_tuyauterie' => 'Démontage de tuyauterie',
+        'colmatage_interstices' => 'Colmatage des interstices',
+        'fermeture' => 'Fermeture (appareil, caniveaux, fosses...)',
+        'isolation_detection' => 'Isolation de la boucle de détection',
+        'isolation_extinction' => 'Isolation du système d\'extinction',
+        'modification_atex' => 'Modification du zonage ATEX existant suite aux mesures de mise en sécurité prises',
+    ];
+
+    /**
+     * Items du tableau « Moyens de prévention » du Permis feu.
+     */
+    public const PERMIS_FEU_MOYENS_PREVENTION = [
+        'protection_abords' => 'Protection des abords (écrans, panneaux, bâches ignifugées, eau, sable, absorbant)',
+        'ventilation' => 'Ventilation mécanique forcée',
+        'controle_atmosphere' => 'Contrôle d\'atmosphère (explosimétrie, teneur en oxygène, détecteur de gaz)',
+        'lutte_incendie' => 'Moyens de lutte contre l\'incendie (extincteur, RIA, lance à incendie)',
+        'materiel_atex' => 'Utilisation de matériel spécifique pour travailler en zone ATEX',
+    ];
+
     protected $fillable = [
         'uuid',
         'agency_id',
@@ -247,6 +280,16 @@ class Pdp extends Model
                 'contact_accident_tel' => null,
                 'date_delivrance' => null,
                 'signed_by_employer' => null, // dataURL PNG
+                // Tableaux Mise en sécurité / Moyens de prévention :
+                // chaque ligne = ['a_faire' => 'oui'|'non'|null, 'qui' => str, 'fait' => 'oui'|'non'|null, 'fait_le' => 'YYYY-MM-DD'|null]
+                'mise_en_securite' => array_fill_keys(
+                    array_keys(self::PERMIS_FEU_MISE_EN_SECURITE),
+                    ['a_faire' => null, 'qui' => null, 'fait' => null, 'fait_le' => null]
+                ),
+                'moyens_prevention' => array_fill_keys(
+                    array_keys(self::PERMIS_FEU_MOYENS_PREVENTION),
+                    ['a_faire' => null, 'qui' => null, 'fait' => null, 'fait_le' => null]
+                ),
             ],
         ];
     }

@@ -368,6 +368,105 @@
                         <label class="flex items-center gap-2"><input type="checkbox" data-cb-path="permis_feu.documents_associes.certificat_degazage" {{ ($pf['documents_associes']['certificat_degazage'] ?? false) ? 'checked' : '' }}> Cert. dégazage</label>
                     </div>
 
+                    {{-- Tableaux Mise en sécurité + Moyens de prévention --}}
+                    @php
+                        $mes = $pf['mise_en_securite'] ?? [];
+                        $mp = $pf['moyens_prevention'] ?? [];
+                        $mesHasData = collect(\App\Models\Pdp::PERMIS_FEU_MISE_EN_SECURITE)->keys()->some(
+                            fn($k) => !empty($mes[$k]['a_faire']) || !empty($mes[$k]['qui']) || !empty($mes[$k]['fait'])
+                        );
+                        $mpHasData = collect(\App\Models\Pdp::PERMIS_FEU_MOYENS_PREVENTION)->keys()->some(
+                            fn($k) => !empty($mp[$k]['a_faire']) || !empty($mp[$k]['qui']) || !empty($mp[$k]['fait'])
+                        );
+                    @endphp
+
+                    <details class="border border-gray-200 rounded-lg mt-3" {{ $mesHasData ? 'open' : '' }}>
+                        <summary class="font-medium text-sm cursor-pointer p-3 hover:bg-gray-50">🛡 Mise en sécurité ({{ count(\App\Models\Pdp::PERMIS_FEU_MISE_EN_SECURITE) }} mesures)</summary>
+                        <div class="px-3 pb-3">
+                            <p class="text-xs text-gray-500 mb-2">Pour chaque mesure : indiquez si elle est à faire / qui s'en charge / si elle est faite et quand.</p>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="text-gray-600 border-b border-gray-200">
+                                            <th class="text-left py-1 pr-2">Mesure</th>
+                                            <th class="px-1 whitespace-nowrap">À faire ?</th>
+                                            <th class="px-1">Qui ?</th>
+                                            <th class="px-1 whitespace-nowrap">Fait ?</th>
+                                            <th class="px-1 whitespace-nowrap">Le ?</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(\App\Models\Pdp::PERMIS_FEU_MISE_EN_SECURITE as $slug => $label)
+                                            @php $r = $mes[$slug] ?? []; @endphp
+                                            <tr class="border-b border-gray-100 align-top">
+                                                <td class="py-1.5 pr-2">{{ $label }}</td>
+                                                <td class="px-1">
+                                                    <select data-path="permis_feu.mise_en_securite.{{ $slug }}.a_faire" class="border border-gray-200 rounded text-xs px-1 py-0.5">
+                                                        <option value="" @selected(($r['a_faire'] ?? null) === null || ($r['a_faire'] ?? null) === '')>—</option>
+                                                        <option value="oui" @selected(($r['a_faire'] ?? null) === 'oui')>OUI</option>
+                                                        <option value="non" @selected(($r['a_faire'] ?? null) === 'non')>NON</option>
+                                                    </select>
+                                                </td>
+                                                <td class="px-1"><input type="text" data-path="permis_feu.mise_en_securite.{{ $slug }}.qui" value="{{ $r['qui'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5 w-24"></td>
+                                                <td class="px-1">
+                                                    <select data-path="permis_feu.mise_en_securite.{{ $slug }}.fait" class="border border-gray-200 rounded text-xs px-1 py-0.5">
+                                                        <option value="" @selected(($r['fait'] ?? null) === null || ($r['fait'] ?? null) === '')>—</option>
+                                                        <option value="oui" @selected(($r['fait'] ?? null) === 'oui')>OUI</option>
+                                                        <option value="non" @selected(($r['fait'] ?? null) === 'non')>NON</option>
+                                                    </select>
+                                                </td>
+                                                <td class="px-1"><input type="date" data-path="permis_feu.mise_en_securite.{{ $slug }}.fait_le" value="{{ $r['fait_le'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5"></td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="border border-gray-200 rounded-lg mt-3" {{ $mpHasData ? 'open' : '' }}>
+                        <summary class="font-medium text-sm cursor-pointer p-3 hover:bg-gray-50">🚒 Moyens de prévention ({{ count(\App\Models\Pdp::PERMIS_FEU_MOYENS_PREVENTION) }} moyens)</summary>
+                        <div class="px-3 pb-3">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="text-gray-600 border-b border-gray-200">
+                                            <th class="text-left py-1 pr-2">Moyen</th>
+                                            <th class="px-1 whitespace-nowrap">À faire ?</th>
+                                            <th class="px-1">Qui ?</th>
+                                            <th class="px-1 whitespace-nowrap">Fait ?</th>
+                                            <th class="px-1 whitespace-nowrap">Le ?</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(\App\Models\Pdp::PERMIS_FEU_MOYENS_PREVENTION as $slug => $label)
+                                            @php $r = $mp[$slug] ?? []; @endphp
+                                            <tr class="border-b border-gray-100 align-top">
+                                                <td class="py-1.5 pr-2">{{ $label }}</td>
+                                                <td class="px-1">
+                                                    <select data-path="permis_feu.moyens_prevention.{{ $slug }}.a_faire" class="border border-gray-200 rounded text-xs px-1 py-0.5">
+                                                        <option value="" @selected(($r['a_faire'] ?? null) === null || ($r['a_faire'] ?? null) === '')>—</option>
+                                                        <option value="oui" @selected(($r['a_faire'] ?? null) === 'oui')>OUI</option>
+                                                        <option value="non" @selected(($r['a_faire'] ?? null) === 'non')>NON</option>
+                                                    </select>
+                                                </td>
+                                                <td class="px-1"><input type="text" data-path="permis_feu.moyens_prevention.{{ $slug }}.qui" value="{{ $r['qui'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5 w-24"></td>
+                                                <td class="px-1">
+                                                    <select data-path="permis_feu.moyens_prevention.{{ $slug }}.fait" class="border border-gray-200 rounded text-xs px-1 py-0.5">
+                                                        <option value="" @selected(($r['fait'] ?? null) === null || ($r['fait'] ?? null) === '')>—</option>
+                                                        <option value="oui" @selected(($r['fait'] ?? null) === 'oui')>OUI</option>
+                                                        <option value="non" @selected(($r['fait'] ?? null) === 'non')>NON</option>
+                                                    </select>
+                                                </td>
+                                                <td class="px-1"><input type="date" data-path="permis_feu.moyens_prevention.{{ $slug }}.fait_le" value="{{ $r['fait_le'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5"></td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </details>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                         <div>
                             <label class="block text-sm font-medium mb-1">Surveillance pendant les travaux (nom)</label>
