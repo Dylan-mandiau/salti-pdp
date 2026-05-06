@@ -116,6 +116,7 @@ class PrestataireAccessController extends Controller
                     'habilitation' => $primary['label'] ?? null,
                     'habilitation_validity' => $primary['validity'] ?? null,
                     'habilitations' => $habs ?: null,
+                    'is_representant' => ! empty($iv['is_representant']),
                 ]);
             }
         }
@@ -324,19 +325,45 @@ class PrestataireAccessController extends Controller
         $iv = $pdp->intervenants()->where('id', $intervenantId)->first();
         if (! $iv) abort(404);
 
+        $sig = $request->input('signature_data');
         $iv->update([
-            'signature_data' => $request->input('signature_data'),
+            'signature_data' => $sig,
             'date_signature' => now()->toDateString(),
         ]);
 
         $this->logAudit($pdp, 'attestation_signed', $request, [
             'intervenant_id' => $intervenantId,
             'nom_prenom' => $iv->nom_prenom,
+            'is_representant' => $iv->is_representant,
         ]);
+
+        // Si ce salarié est aussi le représentant EE, sa signature sert aussi
+        // comme signature_ee finale (évite la double signature).
+        if ($iv->is_representant) {
+            $data = $pdp->data;
+            $data['signature_ee'] = $sig;
+            $data['signature_ee_fonction'] = $data['signature_ee_fonction'] ?? 'Représentant EE';
+            // Auto-fill du Permis feu si requis
+            if (! empty($data['documents_remis_ee']['permis_feu'])) {
+                $data['permis_feu']['signed_by_employer'] = $sig;
+                if (empty($data['permis_feu']['date_delivrance'])) {
+                    $data['permis_feu']['date_delivrance'] = now()->toDateString();
+                }
+            }
+            $pdp->update([
+                'data' => $data,
+                'signed_by_prestataire_at' => now(),
+            ]);
+            $this->logAudit($pdp, 'signed_by_prestataire_via_representant', $request, [
+                'intervenant_id' => $intervenantId,
+            ]);
+        }
 
         return response()->json([
             'ok' => true,
             'date_signature' => $iv->date_signature->format('d/m/Y'),
+            'is_representant' => $iv->is_representant,
+            'signed_by_prestataire' => $pdp->fresh()->signed_by_prestataire_at !== null,
         ]);
     }
 

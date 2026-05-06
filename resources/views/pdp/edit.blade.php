@@ -461,9 +461,22 @@
                 Liste des salariés du prestataire avec leurs habilitations. <strong>Vous pouvez corriger les erreurs ou supprimer un salarié</strong>
                 (utile si une date d'habilitation est mal saisie ou expirée). Un salarié peut avoir plusieurs habilitations.
             </p>
-            @php $allInterv = $pdp->intervenants()->orderBy('id')->get(); @endphp
+            @php
+                $allInterv = $pdp->intervenants()->orderBy('id')->get();
+                $nbSalariesSalti = (int) ($data['operation']['nb_salaries'] ?? 0);
+                // Pré-remplit le nombre de cartes pour matcher le 'Nombre de salariés affectés'
+                // saisi à l'étape 1 (présentiel) ou rempli par le presta (distance).
+                $saltiInterCount = max(1, $nbSalariesSalti, $allInterv->count());
+            @endphp
+            @if($nbSalariesSalti > 0 && $allInterv->count() < $nbSalariesSalti)
+                <div class="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900">
+                    💡 <strong>{{ $nbSalariesSalti }} salarié{{ $nbSalariesSalti > 1 ? 's' : '' }} affecté{{ $nbSalariesSalti > 1 ? 's' : '' }}</strong> ont été déclarés à l'étape 1 — {{ $saltiInterCount - $allInterv->count() }} carte{{ ($saltiInterCount - $allInterv->count()) > 1 ? 's' : '' }} prête{{ ($saltiInterCount - $allInterv->count()) > 1 ? 's' : '' }} à remplir ci-dessous.
+                </div>
+            @endif
             <div id="salti-intervenants" class="space-y-3">
-                @forelse($allInterv as $iv)
+                @for($i = 0; $i < $saltiInterCount; $i++)
+                    @php $iv = $allInterv->get($i); @endphp
+                    @if($iv)
                     @php $habList = $iv->habilitations_list; if (empty($habList)) $habList = [['code' => null, 'label' => '', 'validity' => null]]; @endphp
                     <div class="border border-gray-200 rounded-lg p-3 bg-gray-50" data-iv-card data-iv-id="{{ $iv->id }}">
                         <div class="flex items-center justify-between mb-2">
@@ -472,7 +485,11 @@
                                     class="text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5">🗑 Supprimer</button>
                         </div>
                         <input type="text" data-iv-field="nom_prenom" value="{{ $iv->nom_prenom }}"
-                               placeholder="Nom Prénom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+                               placeholder="Nom Prénom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-2">
+                        <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
+                            <input type="checkbox" data-iv-field="is_representant" {{ $iv->is_representant ? 'checked' : '' }}>
+                            <span><strong>Représentant légal de l'EE</strong> — sa signature d'attestation servira aussi comme signature finale du PDP (1 seule signature au lieu de 2)</span>
+                        </label>
                         <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
                         <div class="space-y-2" data-iv-hab-list>
                             @foreach($habList as $habItem)
@@ -486,8 +503,8 @@
                                     </button>
                                     <input type="hidden" data-hab-field="label" value="{{ $habItem['label'] ?? '' }}">
                                     <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
-                                    <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}"
-                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+                                    <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}" required
+                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm invalid:border-red-400 invalid:bg-red-50" title="Date de fin de validité (obligatoire)">
                                     <button type="button" onclick="removeIvHabLine(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
                                 </div>
                             @endforeach
@@ -497,9 +514,42 @@
                             + Ajouter une habilitation
                         </button>
                     </div>
-                @empty
-                    <p class="text-sm text-gray-500 italic">Aucune habilitation enregistrée pour l'instant.</p>
-                @endforelse
+                    @else
+                        {{-- Carte vide pré-remplie pour atteindre nb_salaries --}}
+                        <div class="border border-gray-200 rounded-lg p-3 bg-gray-50" data-iv-card data-iv-id="">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-xs font-semibold text-gray-500">Salarié EE #{{ $i + 1 }}</div>
+                                <button type="button" onclick="deleteSaltiIntervenant(this)"
+                                        class="text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5">🗑 Supprimer</button>
+                            </div>
+                            <input type="text" data-iv-field="nom_prenom" value=""
+                                   placeholder="Nom Prénom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-2">
+                            <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
+                                <input type="checkbox" data-iv-field="is_representant">
+                                <span><strong>Représentant légal de l'EE</strong> — sa signature d'attestation servira aussi comme signature finale du PDP</span>
+                            </label>
+                            <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
+                            <div class="space-y-2" data-iv-hab-list>
+                                <div data-hab-line class="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-2 md:items-center bg-white p-2 rounded border border-gray-200">
+                                    <button type="button" onclick="openHabPicker(this)"
+                                            class="w-full text-left border border-gray-300 rounded px-3 py-2 text-sm hover:border-salti-yellow hover:bg-yellow-50 flex items-center justify-between gap-2 min-h-[38px]">
+                                        <span data-hab-display class="truncate text-gray-400">— Choisir une habilitation —</span>
+                                        <span class="text-gray-400 shrink-0 text-xs">▾</span>
+                                    </button>
+                                    <input type="hidden" data-hab-field="label" value="">
+                                    <input type="hidden" data-hab-field="code" value="">
+                                    <input type="date" data-hab-field="validity" value="" required
+                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité (obligatoire)">
+                                    <button type="button" onclick="removeIvHabLine(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center">×</button>
+                                </div>
+                            </div>
+                            <button type="button" onclick="addIvHabLine(this)"
+                                    class="mt-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-xs hover:bg-white hover:border-salti-yellow transition">
+                                + Ajouter une habilitation
+                            </button>
+                        </div>
+                    @endif
+                @endfor
             </div>
             <button type="button" onclick="addSaltiIntervenant()"
                     class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 hover:border-salti-yellow transition">
@@ -1065,12 +1115,18 @@
                 document.querySelectorAll('input[name], select[name], textarea[name], [data-path], [data-cb-path]').forEach(el => {
                     el.addEventListener('input', () => this.scheduleSave());
                     el.addEventListener('change', () => this.scheduleSave());
+                    el.addEventListener('blur', () => this.saveNow()); // sauve immédiatement au focus-out
                 });
             },
 
             scheduleSave() {
                 clearTimeout(this.saveTimer);
-                this.saveTimer = setTimeout(() => this.save(), 800);
+                this.saveTimer = setTimeout(() => this.save(), 300); // debounce 300ms (alignement avec côté presta)
+            },
+
+            saveNow() {
+                clearTimeout(this.saveTimer);
+                this.save();
             },
 
             async save() {
@@ -1163,10 +1219,11 @@
         return habs;
     }
 
-    /** Sauvegarde une carte salarié (nom + habilitations) via l'API upsert. */
+    /** Sauvegarde une carte salarié (nom + habilitations + flag représentant) via l'API upsert. */
     async function saveSaltiIntervenantCard(card) {
         const nom = (card.querySelector('[data-iv-field="nom_prenom"]')?.value || '').trim();
         const habs = collectHabilitations(card);
+        const isRep = card.querySelector('[data-iv-field="is_representant"]')?.checked || false;
         if (! nom && habs.length === 0) return; // rien à sauvegarder
         if (! nom) return; // exigence : nom requis pour persister
 
@@ -1175,6 +1232,7 @@
             id: id ? parseInt(id) : null,
             nom_prenom: nom,
             habilitations: habs,
+            is_representant: isRep,
         };
 
         try {
@@ -1197,9 +1255,9 @@
     document.querySelectorAll('[data-iv-card]').forEach(wireSaltiIntervenantCard);
 
     function wireSaltiIntervenantCard(card) {
-        // Inputs nom + dates : sauve sur change/blur
+        // Inputs nom + dates + checkbox représentant : sauve sur change/blur
         card.querySelectorAll('[data-iv-field], [data-hab-field="validity"]').forEach(el => {
-            ['change', 'blur'].forEach(ev => el.addEventListener(ev, () => debouncedSave(card)));
+            ['change', 'blur', 'input'].forEach(ev => el.addEventListener(ev, () => debouncedSave(card)));
         });
         // Modal habilitations : sauve quand 'hab-changed' bubble depuis la ligne
         card.addEventListener('hab-changed', () => debouncedSave(card));
@@ -1218,7 +1276,7 @@
             </button>
             <input type="hidden" data-hab-field="label" value="">
             <input type="hidden" data-hab-field="code" value="">
-            <input type="date" data-hab-field="validity" value="" class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+            <input type="date" data-hab-field="validity" value="" required class="border border-gray-200 rounded px-2 py-1.5 text-sm invalid:border-red-400 invalid:bg-red-50" title="Date de fin de validité (obligatoire)">
             <button type="button" onclick="removeIvHabLine(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
         `;
         return wrap;
@@ -1288,7 +1346,11 @@
                 <div class="text-xs font-semibold text-gray-500">Salarié EE</div>
                 <button type="button" onclick="deleteSaltiIntervenant(this)" class="text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5">🗑 Supprimer</button>
             </div>
-            <input type="text" data-iv-field="nom_prenom" placeholder="Nom Prénom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+            <input type="text" data-iv-field="nom_prenom" placeholder="Nom Prénom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-2">
+            <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
+                <input type="checkbox" data-iv-field="is_representant">
+                <span><strong>Représentant légal de l'EE</strong> — sa signature d'attestation servira aussi comme signature finale du PDP</span>
+            </label>
             <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
             <div class="space-y-2" data-iv-hab-list></div>
             <button type="button" onclick="addIvHabLine(this)" class="mt-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-xs hover:bg-white hover:border-salti-yellow transition">+ Ajouter une habilitation</button>

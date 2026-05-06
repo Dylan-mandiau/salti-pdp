@@ -600,6 +600,7 @@ class PdpController extends Controller
             'habilitations.*.code' => 'nullable|string|max:50',
             'habilitations.*.label' => 'nullable|string|max:255',
             'habilitations.*.validity' => 'nullable|date',
+            'is_representant' => 'sometimes|boolean',
         ]);
 
         // Normalise le payload habilitations (multi) avec fallback sur le format legacy
@@ -628,7 +629,13 @@ class PdpController extends Controller
             'habilitation' => $primary['label'] ?? null,            // legacy column (compat)
             'habilitation_validity' => $primary['validity'] ?? null,// legacy column (compat)
             'habilitations' => $habs ?: null,                       // nouveau JSON
+            'is_representant' => $request->boolean('is_representant'),
         ];
+
+        // Un seul représentant à la fois : si on coche un, on décoche les autres
+        if ($payload['is_representant']) {
+            $pdp->intervenants()->where('id', '!=', $validated['id'] ?? 0)->update(['is_representant' => false]);
+        }
 
         if (! empty($validated['id'])) {
             $iv = $pdp->intervenants()->where('id', $validated['id'])->firstOrFail();

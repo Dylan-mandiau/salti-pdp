@@ -18,6 +18,7 @@ class PdpIntervenant extends Model
         'habilitation',
         'habilitation_validity',
         'habilitations',
+        'is_representant',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class PdpIntervenant extends Model
             'date_signature' => 'date',
             'habilitation_validity' => 'date',
             'habilitations' => 'array',
+            'is_representant' => 'boolean',
         ];
     }
 

@@ -406,6 +406,16 @@ class PdpValidator
             }
         }
 
+        // ━━ DATE DE VALIDITÉ MANQUANTE — bloquant ━━
+        // Une habilitation sans date n'a pas de valeur juridique : on l'exige.
+        foreach ($intervenants as $iv) {
+            foreach ($iv->habilitations_list as $h) {
+                if (! empty($h['label']) && empty($h['validity'])) {
+                    $this->error(null, "📅 Habilitation « {$h['label']} » de {$iv->nom_prenom} : la date de validité est obligatoire (saisissez la date de fin de validité du certificat).", 5);
+                }
+            }
+        }
+
         // ━━ DATES DE VALIDITÉ — bloquant si expirée avant l\'intervention ━━
 
         if (! empty($data['operation']['date_debut'])) {

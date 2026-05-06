@@ -282,7 +282,11 @@
                         </div>
                         <input type="text" data-emp-field="nom_prenom" value="{{ $h?->nom_prenom ?? '' }}"
                                placeholder="Nom Prénom du salarié"
-                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-2">
+                        <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
+                            <input type="checkbox" data-emp-field="is_representant" {{ $h?->is_representant ? 'checked' : '' }}>
+                            <span><strong>Je suis le représentant légal de l'EE</strong> — ma signature d'attestation servira aussi comme signature finale du PDP (1 seule signature)</span>
+                        </label>
                         <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
                         <div class="space-y-2" data-hab-list>
                             @foreach($habList as $habItem)
@@ -296,8 +300,8 @@
                                     </button>
                                     <input type="hidden" data-hab-field="label" value="{{ $habItem['label'] ?? '' }}">
                                     <input type="hidden" data-hab-field="code" value="{{ $habItem['code'] ?? '' }}">
-                                    <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}"
-                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+                                    <input type="date" data-hab-field="validity" value="{{ $habItem['validity'] ?? '' }}" required
+                                           class="border border-gray-200 rounded px-2 py-1.5 text-sm invalid:border-red-400 invalid:bg-red-50" title="Date de fin de validité (obligatoire)">
                                     <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
                                 </div>
                             @endforeach
@@ -449,12 +453,20 @@
 
                 <div class="space-y-4">
                     @foreach($habs as $iv)
-                        <div class="border border-gray-200 rounded-lg p-4" data-intervenant-id="{{ $iv->id }}">
+                        <div class="border {{ $iv->is_representant ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200' }} rounded-lg p-4" data-intervenant-id="{{ $iv->id }}">
                             <div class="flex items-center justify-between mb-2">
                                 <div>
-                                    <div class="font-medium">{{ $iv->nom_prenom }}</div>
+                                    <div class="font-medium flex items-center gap-2">
+                                        {{ $iv->nom_prenom }}
+                                        @if($iv->is_representant)
+                                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-200">⭐ Représentant EE</span>
+                                        @endif
+                                    </div>
                                     @if($iv->habilitation)
                                         <div class="text-xs text-gray-500">{{ $iv->habilitation }}</div>
+                                    @endif
+                                    @if($iv->is_representant && ! $iv->signature_data)
+                                        <div class="text-xs text-blue-700 mt-1">💡 Sa signature ci-dessous servira aussi comme signature finale du PDP — pas besoin de signer 2 fois.</div>
                                     @endif
                                 </div>
                                 @if($iv->signature_data)
@@ -731,14 +743,14 @@
             </button>
             <input type="hidden" data-hab-field="label" value="${safeLabel}">
             <input type="hidden" data-hab-field="code" value="${code}">
-            <input type="date" data-hab-field="validity" value="${validity}" class="border border-gray-200 rounded px-2 py-1.5 text-sm" title="Date de fin de validité">
+            <input type="date" data-hab-field="validity" value="${validity}" required class="border border-gray-200 rounded px-2 py-1.5 text-sm invalid:border-red-400 invalid:bg-red-50" title="Date de fin de validité (obligatoire)">
             <button type="button" onclick="removeHabFromEmp(this)" class="text-red-500 hover:text-red-700 text-xl justify-self-center" title="Retirer cette habilitation">×</button>
         `;
         wrap.querySelectorAll('input').forEach(attachAutoSave);
         return wrap;
     }
 
-    /** Construit une carte <salarié> (nom + liste d'habilitations + bouton +) */
+    /** Construit une carte <salarié> (nom + checkbox représentant + habilitations + bouton +) */
     function buildEmpCardEl(idx) {
         const card = document.createElement('div');
         card.setAttribute('data-emp-card', '');
@@ -748,7 +760,11 @@
                 <div class="text-xs font-semibold text-gray-500">Salarié #${idx + 1}</div>
                 <button type="button" onclick="removeEmpCard(this)" class="text-red-500 hover:text-red-700 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-0.5">🗑 Supprimer</button>
             </div>
-            <input type="text" data-emp-field="nom_prenom" placeholder="Nom Prénom du salarié" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-3">
+            <input type="text" data-emp-field="nom_prenom" placeholder="Nom Prénom du salarié" class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-medium mb-2">
+            <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
+                <input type="checkbox" data-emp-field="is_representant">
+                <span><strong>Je suis le représentant légal de l'EE</strong> — ma signature servira aussi comme signature finale</span>
+            </label>
             <div class="text-xs font-semibold text-gray-600 mb-1">Habilitations :</div>
             <div class="space-y-2" data-hab-list></div>
             <button type="button" onclick="addHabToEmp(this)" class="mt-2 inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-xs hover:bg-white hover:border-salti-yellow transition">+ Ajouter une habilitation</button>
@@ -836,10 +852,11 @@
             setDeep(data, el.dataset.cbPath, el.checked);
         });
 
-        // 4. Salariés et leurs habilitations multiples
+        // 4. Salariés et leurs habilitations multiples + flag représentant
         const intervenants = [];
         document.querySelectorAll('[data-emp-card]').forEach(card => {
             const nom = (card.querySelector('[data-emp-field="nom_prenom"]')?.value || '').trim();
+            const isRep = card.querySelector('[data-emp-field="is_representant"]')?.checked || false;
             const habs = [];
             card.querySelectorAll('[data-hab-line]').forEach(line => {
                 const label = (line.querySelector('[data-hab-field="label"]')?.value || '').trim();
@@ -851,7 +868,7 @@
                 });
             });
             if (nom || habs.length) {
-                intervenants.push({ nom_prenom: nom, habilitations: habs });
+                intervenants.push({ nom_prenom: nom, habilitations: habs, is_representant: isRep });
             }
         });
         data.intervenants = intervenants;
