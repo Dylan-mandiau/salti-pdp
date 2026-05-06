@@ -285,8 +285,12 @@ class PrestataireAccessController extends Controller
      * Si le Permis feu est requis sur ce PDP, la signature et la date de
      * délivrance sont automatiquement reportées sur le Permis feu — pas
      * besoin pour le presta de signer deux fois.
+     *
+     * Si SALTI a déjà signé, on finalise le PDP (statut → SIGNED, PDF final
+     * généré, hash SHA-256 stocké) — sinon le statut restait bloqué à
+     * "À signer" alors que les 2 parties avaient signé.
      */
-    public function sign(string $token, Request $request): RedirectResponse
+    public function sign(string $token, Request $request, \App\Services\PdpHtmlPdfGenerator $generator): RedirectResponse
     {
         $pdp = $this->resolveToken($token);
 
@@ -314,6 +318,9 @@ class PrestataireAccessController extends Controller
         ]);
 
         $this->logAudit($pdp, 'signed_by_prestataire', $request);
+
+        // Si SALTI a déjà signé, finaliser le PDP (statut → SIGNED + PDF final)
+        $pdp->finalizeIfBothSigned($generator);
 
         return redirect()->route('prestataire.show', $token)
             ->with('success', 'Signature enregistrée. Merci !');

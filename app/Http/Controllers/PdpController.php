@@ -130,6 +130,10 @@ class PdpController extends Controller
     {
         $this->authorizePdp($pdp);
 
+        // Auto-correction d'un PDP coincé en "À signer" alors que les 2 parties
+        // ont signé (cas qui pouvait arriver avant le fix de finalizeIfBothSigned).
+        $pdp->finalizeIfBothSigned($this->generator);
+
         $step = (int) $request->query('step', 1);
         $step = max(1, min(6, $step));
 
@@ -376,21 +380,11 @@ class PdpController extends Controller
 
     /**
      * Si toutes les signatures sont là, on marque le PDP comme signé et on génère le PDF final.
+     * Logique déléguée au modèle pour pouvoir l'appeler depuis le contrôleur prestataire aussi.
      */
     private function checkAllSigned(Pdp $pdp): void
     {
-        $pdp->refresh();
-        if ($pdp->signed_by_salti_at && $pdp->signed_by_prestataire_at) {
-            $finalPath = $this->generator->generate($pdp);
-            $absolutePath = storage_path('app/'.$finalPath);
-            $hash = hash_file('sha256', $absolutePath);
-
-            $pdp->update([
-                'status' => Pdp::STATUS_SIGNED,
-                'final_pdf_path' => $finalPath,
-                'final_pdf_sha256' => $hash,
-            ]);
-        }
+        $pdp->finalizeIfBothSigned($this->generator);
     }
 
     /**

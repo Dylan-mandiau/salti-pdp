@@ -120,6 +120,38 @@ class Pdp extends Model
         return $this->hasMany(PdpIntervenant::class);
     }
 
+    /**
+     * Si les 2 parties (SALTI + presta) ont signé, marque le PDP comme SIGNED,
+     * génère le PDF final et stocke son hash SHA-256.
+     *
+     * Idempotent : appelable depuis n'importe quel endpoint de signature
+     * (signSalti, signEePresentiel, prestataire.sign) sans risque de doublons.
+     *
+     * Retourne true si le PDP vient d'être finalisé, false sinon.
+     */
+    public function finalizeIfBothSigned(\App\Services\PdpHtmlPdfGenerator $generator): bool
+    {
+        $this->refresh();
+        if (! $this->signed_by_salti_at || ! $this->signed_by_prestataire_at) {
+            return false;
+        }
+        if ($this->status === self::STATUS_SIGNED || $this->status === self::STATUS_ARCHIVED) {
+            return false;
+        }
+
+        $finalPath = $generator->generate($this);
+        $absolutePath = storage_path('app/'.$finalPath);
+        $hash = hash_file('sha256', $absolutePath);
+
+        $this->update([
+            'status' => self::STATUS_SIGNED,
+            'final_pdf_path' => $finalPath,
+            'final_pdf_sha256' => $hash,
+        ]);
+
+        return true;
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(PdpDocument::class);

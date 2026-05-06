@@ -84,10 +84,21 @@
                   {{ $required ? 'required' : '' }}>{{ $value }}</textarea>
 
     @elseif($type === 'duree')
-        {{-- Input combiné : nombre + unité --}}
+        {{-- Input combiné : nombre + unité.
+             Liste simplifiée : 1 seule valeur par unité (toujours au pluriel pour
+             éviter les "jour" et "jours" qui doublent). Par défaut "jours" pour
+             que le PDF Permis feu / Convention récupère toujours une unité. --}}
         @php
             $durValue = is_array($value) ? ($value['value'] ?? null) : null;
             $durUnit = is_array($value) ? ($value['unit'] ?? null) : null;
+            // Migration douce : "jour" → "jours", "semaine" → "semaines", "an" → "ans"
+            $durUnit = match ($durUnit) {
+                'jour' => 'jours',
+                'semaine' => 'semaines',
+                'an' => 'ans',
+                null, '' => 'jours',
+                default => $durUnit,
+            };
         @endphp
         <div class="flex gap-2">
             <input type="number" id="{{ $id }}_value"
@@ -101,14 +112,10 @@
                     name="{{ $name }}_unit"
                     class="{{ $baseClass }} flex-1"
                     {{ $required ? 'required' : '' }}>
-                <option value="">— Unité —</option>
-                <option value="jour" {{ $durUnit === 'jour' ? 'selected' : '' }}>jour</option>
-                <option value="jours" {{ $durUnit === 'jours' ? 'selected' : '' }}>jours</option>
-                <option value="semaine" {{ $durUnit === 'semaine' ? 'selected' : '' }}>semaine</option>
-                <option value="semaines" {{ $durUnit === 'semaines' ? 'selected' : '' }}>semaines</option>
-                <option value="mois" {{ $durUnit === 'mois' ? 'selected' : '' }}>mois</option>
-                <option value="an" {{ $durUnit === 'an' ? 'selected' : '' }}>an</option>
-                <option value="ans" {{ $durUnit === 'ans' ? 'selected' : '' }}>ans</option>
+                <option value="jours" @selected($durUnit === 'jours')>jour(s)</option>
+                <option value="semaines" @selected($durUnit === 'semaines')>semaine(s)</option>
+                <option value="mois" @selected($durUnit === 'mois')>mois</option>
+                <option value="ans" @selected($durUnit === 'ans')>an(s)</option>
             </select>
         </div>
 
