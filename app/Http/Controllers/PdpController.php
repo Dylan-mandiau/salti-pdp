@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Pdp;
 use App\Models\Prestataire;
 use App\Models\User;
-use App\Services\GmailService;
 use App\Services\PdpHtmlPdfGenerator;
 use App\Services\PdpPdfGenerator;
 use App\Services\PdpValidator;
@@ -25,7 +24,6 @@ class PdpController extends Controller
         private PdpHtmlPdfGenerator $generator,
         private PdpPdfGenerator $legacyGenerator,
         private PdpValidator $validator,
-        private GmailService $gmail,
     ) {}
 
     /**
@@ -212,29 +210,26 @@ class PdpController extends Controller
             'email' => $request->input('prestataire_email'),
         ]);
 
-        // Envoi email via Gmail Workspace (Service Account) si configuré
-        $emailSent = false;
-        if ($this->gmail->isConfigured()) {
-            $agency = $pdp->agency;
-            $emailSent = $this->gmail->sendAs(
-                fromEmail: $agency->email,
-                fromName: $agency->name,
-                to: $request->input('prestataire_email'),
-                subject: 'Plan de Prévention SALTI à compléter — '.($pdp->data['operation']['designation'] ?? 'Intervention'),
-                htmlBody: view('emails.prestataire-invitation', [
-                    'pdp' => $pdp,
-                    'magicUrl' => $pdp->magicLinkUrl(),
-                    'agency' => $agency,
-                ])->render(),
-            );
+        // Pas d'envoi auto : le SALTI copie/colle le lien dans son mail
+        return redirect()->route('pdp.edit', $pdp)
+            ->with('success', "✓ Lien magique généré (valable 7 jours).\nCopiez le lien ci-dessous et envoyez-le par mail au prestataire :\n".$pdp->magicLinkUrl());
+    }
+
+    /**
+     * Régénère un nouveau lien magique pour ce PDP (en cas d'expiration ou de perte).
+     */
+    public function regenerateMagicLink(Pdp $pdp, Request $request): RedirectResponse
+    {
+        $this->authorizePdp($pdp);
+
+        if ($pdp->mode !== Pdp::MODE_DISTANCE) {
+            return back()->with('error', 'Cette action est réservée aux PDP en mode "À distance".');
         }
 
-        $msg = $emailSent
-            ? "✓ Lien envoyé par mail à {$request->input('prestataire_email')} (depuis {$pdp->agency->email}).\nValidité : 7 jours."
-            : "Lien magique généré (valable 7 jours) — copiez-le manuellement :\n".$pdp->magicLinkUrl()
-                ."\n\n⚠ L'envoi automatique par mail nécessite la configuration Gmail Workspace (voir doc).";
+        $token = $pdp->generateMagicToken(7);
+        $this->logAudit($pdp, 'magic_link_regenerated', $request);
 
-        return redirect()->route('pdp.edit', $pdp)->with('success', $msg);
+        return back()->with('success', "✓ Nouveau lien magique généré (valable 7 jours) :\n".$pdp->magicLinkUrl());
     }
 
     /**

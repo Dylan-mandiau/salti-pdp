@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/pdp/{pdp}', [PdpController::class, 'edit'])->name('pdp.edit');
     Route::post('/pdp/{pdp}/auto-save', [PdpController::class, 'autoSave'])->name('pdp.auto-save');
     Route::post('/pdp/{pdp}/send', [PdpController::class, 'sendToPrestataire'])->name('pdp.send');
+    Route::post('/pdp/{pdp}/regenerate-link', [PdpController::class, 'regenerateMagicLink'])->name('pdp.regenerate-link');
     Route::post('/pdp/{pdp}/validate', [PdpController::class, 'validateByCAlti'])->name('pdp.validate');
     Route::post('/pdp/{pdp}/sign-salti', [PdpController::class, 'signSalti'])->name('pdp.sign-salti');
     Route::post('/pdp/{pdp}/sign-ee-presentiel', [PdpController::class, 'signEePresentiel'])->name('pdp.sign-ee-presentiel');
@@ -69,6 +70,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [App\Http\Controllers\AdminController::class, 'settings'])->name('settings');
         Route::post('/settings/{type}', [App\Http\Controllers\AdminController::class, 'uploadGlobalFile'])->name('settings.upload');
         Route::delete('/settings/{type}', [App\Http\Controllers\AdminController::class, 'deleteGlobalFile'])->name('settings.delete');
+
+        // Interlocuteurs QSE (sur page 1 du PDP)
+        Route::get('/interlocutors', [App\Http\Controllers\AdminController::class, 'interlocutors'])->name('interlocutors.index');
+        Route::post('/interlocutors', [App\Http\Controllers\AdminController::class, 'storeInterlocutor'])->name('interlocutors.store');
+        Route::patch('/interlocutors/{interlocutor}', [App\Http\Controllers\AdminController::class, 'updateInterlocutor'])->name('interlocutors.update');
+        Route::delete('/interlocutors/{interlocutor}', [App\Http\Controllers\AdminController::class, 'deleteInterlocutor'])->name('interlocutors.delete');
     });
 
     // Téléchargement des fichiers globaux (accessible à tous les utilisateurs SALTI)

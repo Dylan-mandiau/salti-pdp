@@ -42,6 +42,52 @@
         </div>
     </div>
 
+    {{-- Bandeau "lien magique" pour les PDP à distance (visible toujours, jusqu'à signature) --}}
+    @if($pdp->mode === 'distance' && $pdp->magic_token && ! $pdp->signed_by_prestataire_at)
+        @php
+            $expired = $pdp->magic_token_expires_at && $pdp->magic_token_expires_at->isPast();
+        @endphp
+        <div class="mb-4 px-4 py-3 rounded-lg shadow-sm border
+                    {{ $expired ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-200' }}">
+            <div class="flex items-start gap-3 flex-wrap">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold {{ $expired ? 'text-red-900' : 'text-blue-900' }} uppercase tracking-wide mb-1">
+                        🔗 Lien magique prestataire
+                        @if($expired)
+                            <span class="bg-red-200 text-red-900 px-2 py-0.5 rounded ml-1 normal-case">⚠ Expiré</span>
+                        @else
+                            <span class="text-xs normal-case font-normal text-blue-700 ml-1">
+                                Valide jusqu'au {{ $pdp->magic_token_expires_at?->format('d/m/Y à H\hi') }}
+                            </span>
+                        @endif
+                    </div>
+                    <input type="text" readonly value="{{ $pdp->magicLinkUrl() }}"
+                           onclick="this.select()"
+                           class="w-full font-mono text-sm border border-gray-300 rounded px-3 py-2 bg-white">
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button type="button" onclick="copyMagicLink()" class="bg-black text-white px-3 py-2 rounded text-sm hover:bg-gray-800">
+                        📋 Copier
+                    </button>
+                    <form method="POST" action="{{ route('pdp.regenerate-link', $pdp) }}"
+                          onsubmit="return confirm('Régénérer un nouveau lien ? L'ancien lien deviendra inutilisable.');"
+                          class="inline">
+                        @csrf
+                        <button type="submit" class="bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600">
+                            🔄 Régénérer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script>
+            function copyMagicLink() {
+                const link = "{{ $pdp->magicLinkUrl() }}";
+                navigator.clipboard.writeText(link).then(() => alert('Lien copié !'));
+            }
+        </script>
+    @endif
+
     {{-- Petit indicateur silencieux sur les étapes 1-5 (juste un compteur) --}}
     @if($step !== 6 && ($validation['errors_count'] > 0 || $validation['warnings_count'] > 0))
         <div class="mb-3 text-xs text-gray-500 flex items-center gap-3">

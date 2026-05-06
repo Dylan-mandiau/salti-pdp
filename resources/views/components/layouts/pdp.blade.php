@@ -88,6 +88,7 @@
                     @if(auth()->user()->isQseAdmin())
                         <a href="{{ route('admin.agencies.index') }}" class="text-sm hover:text-salti-yellow">⚙ Agences</a>
                         <a href="{{ route('admin.settings') }}" class="text-sm hover:text-salti-yellow">📁 Réglages</a>
+                        <a href="{{ route('admin.interlocutors.index') }}" class="text-sm hover:text-salti-yellow">👥 Interlocuteurs</a>
                     @endif
                 </div>
 
@@ -121,6 +122,7 @@
                 @if(auth()->user()->isQseAdmin())
                     <a href="{{ route('admin.agencies.index') }}" class="block py-2 text-sm hover:text-salti-yellow">⚙ Agences</a>
                     <a href="{{ route('admin.settings') }}" class="block py-2 text-sm hover:text-salti-yellow">📁 Réglages globaux</a>
+                    <a href="{{ route('admin.interlocutors.index') }}" class="block py-2 text-sm hover:text-salti-yellow">👥 Interlocuteurs QSE</a>
                 @endif
                 <div class="border-t border-gray-800 pt-2 mt-2">
                     <div class="text-xs text-gray-400 py-1">

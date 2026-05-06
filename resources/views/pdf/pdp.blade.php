@@ -204,13 +204,13 @@
             <td colspan="2" class="interlocuteurs">
                 <table style="width:100%"><tr>
                     <td style="width:50%; text-align:center;">
-                        <strong>Lydie Bernard</strong> - Coordinatrice QSE — 06.22.83.61.71<br>
-                        <strong>Animateurs QSE :</strong><br>
-                        Nazim Belhadj-Abed - 06.26.85.16.87<br>
-                        Morgane RAYNAUD - 07.87.09.86.90<br>
-                        <strong>Thomas DAMAREZ</strong> - Responsable QSE — 06.13.70.32.85<br>
-                        Ethan DELRUE - Assistant QSE — 07.85.79.07.82<br>
-                        <span style="color:#0070c0;text-decoration:underline">qse@salti.fr</span>
+                        @foreach($interlocutors as $contact)
+                            @if($contact->is_main)<strong>{{ $contact->name }}</strong>@else{{ $contact->name }}@endif
+                            @if($contact->role) - {{ $contact->role }}@endif
+                            @if($contact->phone) — {{ $contact->phone }}@endif
+                            @if($contact->email)<br><span style="color:#0070c0;text-decoration:underline">{{ $contact->email }}</span>@endif
+                            <br>
+                        @endforeach
                     </td>
                     <td style="width:50%"></td>
                 </tr></table>
