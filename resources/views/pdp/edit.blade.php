@@ -508,6 +508,21 @@
 
             {{-- Modal habilitations partagée (incluse 1 seule fois sur la page) --}}
             @include('pdp.partials.hab-picker-modal')
+
+            {{-- Permis feu — partial unifié avec côté presta.
+                 Visible si la case « Permis feu » a été cochée à l'étape 2.
+                 Permet à SALTI de remplir lui-même en présentiel ou de corriger
+                 le formulaire à distance. Convention data-path = save automatique
+                 vers /pdp/{pdp}/auto-save (gérée par pdpWizard().save()). --}}
+            @if($data['documents_remis_ee']['permis_feu'] ?? false)
+                <div class="mt-6">
+                    @include('pdp.partials.permis-feu-form', [
+                        'pf' => $data['permis_feu'] ?? [],
+                        'downloadUrl' => route('pdp.download.permis-feu', $pdp),
+                        'audience' => 'salti',
+                    ])
+                </div>
+            @endif
         @endif
 
         {{-- ════════════════════════════════════════════════════════════════
@@ -991,8 +1006,11 @@
             saveTimer: null,
 
             init() {
-                document.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
+                // Champs name=… (formulaire wizard) + champs data-path / data-cb-path
+                // (partials Permis feu / Mise en sécurité — convention partagée presta)
+                document.querySelectorAll('input[name], select[name], textarea[name], [data-path], [data-cb-path]').forEach(el => {
                     el.addEventListener('input', () => this.scheduleSave());
+                    el.addEventListener('change', () => this.scheduleSave());
                 });
             },
 
@@ -1003,27 +1021,34 @@
 
             async save() {
                 const form = {};
-                // 1. Champs simples (name = "a.b.c")
-                document.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
-                    let path = el.name;
-
-                    // Cas spéciaux pour les composants composés (durée + plages horaires)
-                    // operation.duree_value / operation.duree_unit → composent operation.duree_value et operation.duree_unit en BDD
-                    // operation.plages_horaires_debut / _fin → idem
-
+                const setPath = (path, value) => {
                     const parts = path.split('.');
                     let cur = form;
                     for (let i = 0; i < parts.length - 1; i++) {
                         cur[parts[i]] = cur[parts[i]] || {};
                         cur = cur[parts[i]];
                     }
-                    const leaf = parts[parts.length - 1];
+                    cur[parts[parts.length - 1]] = value;
+                };
+
+                // 1. Champs simples (name = "a.b.c")
+                document.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
+                    if (el.type === 'checkbox') setPath(el.name, el.checked);
+                    else if (el.type === 'radio') { if (el.checked) setPath(el.name, el.value); }
+                    else setPath(el.name, el.value);
+                });
+
+                // 2. Champs partagés avec le partial Permis feu : data-path = chemin direct
+                document.querySelectorAll('[data-path]').forEach(el => {
+                    setPath(el.dataset.path, el.value);
+                });
+
+                // 3. Checkboxes du partial : data-cb-path = chemin booléen
+                document.querySelectorAll('[data-cb-path]').forEach(el => {
                     if (el.type === 'checkbox') {
-                        cur[leaf] = el.checked;
+                        setPath(el.dataset.cbPath, el.checked);
                     } else if (el.type === 'radio') {
-                        if (el.checked) cur[leaf] = el.value;
-                    } else {
-                        cur[leaf] = el.value;
+                        if (el.checked) setPath(el.dataset.cbPath, el.value);
                     }
                 });
 
