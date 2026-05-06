@@ -44,6 +44,18 @@
             @endforeach
         </select>
 
+    @elseif($type === 'siret')
+        {{-- SIRET : 14 chiffres exactement, filtre live des non-chiffres,
+             validité affichée par bordure rouge si saisi mais incomplet --}}
+        <input type="text" id="{{ $id }}" name="{{ $name }}"
+               value="{{ $value }}"
+               maxlength="14" minlength="14"
+               pattern="\d{14}" inputmode="numeric"
+               oninput="this.value = this.value.replace(/\D/g, '').slice(0, 14); this.setCustomValidity(this.value && this.value.length !== 14 ? 'Le SIRET doit comporter exactement 14 chiffres.' : '')"
+               placeholder="{{ $placeholder ?: '14 chiffres' }}"
+               class="{{ $baseClass }} font-mono pdp-siret-input invalid:border-red-400 invalid:bg-red-50"
+               {{ $required ? 'required' : '' }}>
+
     @elseif($type === 'tel')
         <input type="tel" id="{{ $id }}" name="{{ $name }}"
                value="{{ $value }}"

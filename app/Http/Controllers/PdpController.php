@@ -475,8 +475,12 @@ class PdpController extends Controller
     }
 
     /**
-     * Met à jour OU crée un intervenant (CACES/habilitation) sur un PDP.
+     * Met à jour OU crée un intervenant (multi-habilitations) sur un PDP.
      * Permet à SALTI de corriger les erreurs du prestataire (date mal saisie).
+     *
+     * Accepte deux formats :
+     *  - Nouveau (multi) : { id, nom_prenom, habilitations: [{code, label, validity}, …] }
+     *  - Legacy (single) : { id, nom_prenom, habilitation, habilitation_validity }
      */
     public function upsertIntervenant(Pdp $pdp, Request $request)
     {
@@ -487,33 +491,57 @@ class PdpController extends Controller
             'nom_prenom' => 'required|string|max:255',
             'habilitation' => 'nullable|string|max:255',
             'habilitation_validity' => 'nullable|date',
+            'habilitations' => 'nullable|array',
+            'habilitations.*.code' => 'nullable|string|max:50',
+            'habilitations.*.label' => 'nullable|string|max:255',
+            'habilitations.*.validity' => 'nullable|date',
         ]);
+
+        // Normalise le payload habilitations (multi) avec fallback sur le format legacy
+        $habs = [];
+        if (! empty($validated['habilitations']) && is_array($validated['habilitations'])) {
+            foreach ($validated['habilitations'] as $h) {
+                $label = trim($h['label'] ?? '');
+                if ($label === '') continue;
+                $habs[] = [
+                    'code' => $h['code'] ?: null,
+                    'label' => $label,
+                    'validity' => ! empty($h['validity']) ? $h['validity'] : null,
+                ];
+            }
+        } elseif (! empty($validated['habilitation'])) {
+            $habs[] = [
+                'code' => null,
+                'label' => $validated['habilitation'],
+                'validity' => $validated['habilitation_validity'] ?? null,
+            ];
+        }
+        $primary = $habs[0] ?? null;
+
+        $payload = [
+            'nom_prenom' => $validated['nom_prenom'],
+            'habilitation' => $primary['label'] ?? null,            // legacy column (compat)
+            'habilitation_validity' => $primary['validity'] ?? null,// legacy column (compat)
+            'habilitations' => $habs ?: null,                       // nouveau JSON
+        ];
 
         if (! empty($validated['id'])) {
             $iv = $pdp->intervenants()->where('id', $validated['id'])->firstOrFail();
-            $iv->update([
-                'nom_prenom' => $validated['nom_prenom'],
-                'habilitation' => $validated['habilitation'] ?? null,
-                'habilitation_validity' => $validated['habilitation_validity'] ?? null,
-            ]);
+            $iv->update($payload);
         } else {
-            $iv = $pdp->intervenants()->create([
-                'nom_prenom' => $validated['nom_prenom'],
-                'habilitation' => $validated['habilitation'] ?? null,
-                'habilitation_validity' => $validated['habilitation_validity'] ?? null,
-            ]);
+            $iv = $pdp->intervenants()->create($payload);
         }
 
         $this->logAudit($pdp, 'intervenant_updated_by_salti', $request, [
             'id' => $iv->id,
             'nom_prenom' => $iv->nom_prenom,
+            'nb_habilitations' => count($habs),
         ]);
 
         return response()->json([
             'id' => $iv->id,
             'nom_prenom' => $iv->nom_prenom,
-            'habilitation' => $iv->habilitation,
-            'habilitation_validity' => $iv->habilitation_validity?->format('Y-m-d'),
+            'habilitations' => $habs,
         ]);
     }
 
