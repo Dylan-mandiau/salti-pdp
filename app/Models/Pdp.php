@@ -335,14 +335,16 @@ class Pdp extends Model
                 'date_delivrance' => null,
                 'signed_by_employer' => null, // dataURL PNG
                 // Tableaux Mise en sécurité / Moyens de prévention :
-                // chaque ligne = ['a_faire' => 'oui'|'non'|null, 'qui' => str, 'fait' => 'oui'|'non'|null, 'fait_le' => 'YYYY-MM-DD'|null]
+                // chaque ligne = ['a_faire' => 'oui'|'non', 'qui' => str, 'fait' => 'oui'|'non', 'fait_le' => 'YYYY-MM-DD'|null]
+                // Par défaut 'non' partout : la majorité des mesures ne s'appliquent pas
+                // au chantier moyen, le presta bascule en 'oui' uniquement les pertinentes.
                 'mise_en_securite' => array_fill_keys(
                     array_keys(self::PERMIS_FEU_MISE_EN_SECURITE),
-                    ['a_faire' => null, 'qui' => null, 'fait' => null, 'fait_le' => null]
+                    ['a_faire' => 'non', 'qui' => null, 'fait' => 'non', 'fait_le' => null]
                 ),
                 'moyens_prevention' => array_fill_keys(
                     array_keys(self::PERMIS_FEU_MOYENS_PREVENTION),
-                    ['a_faire' => null, 'qui' => null, 'fait' => null, 'fait_le' => null]
+                    ['a_faire' => 'non', 'qui' => null, 'fait' => 'non', 'fait_le' => null]
                 ),
             ],
         ];

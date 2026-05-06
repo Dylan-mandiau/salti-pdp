@@ -194,29 +194,24 @@ class PdpController extends Controller
     }
 
     /**
-     * Génère un lien magique et l'envoie au prestataire (mode "à distance").
+     * Génère un lien magique d'accès pour le prestataire (mode "à distance").
+     * Le SALTI copie ensuite le lien depuis le bandeau pour le transmettre
+     * (email perso, SMS, messagerie…). Pas d'email envoyé par le système.
      */
     public function sendToPrestataire(Pdp $pdp, Request $request): RedirectResponse
     {
         $this->authorizePdp($pdp);
 
-        $request->validate([
-            'prestataire_email' => 'required|email',
-        ]);
-
-        $token = $pdp->generateMagicToken(7);
+        $pdp->generateMagicToken(7);
         $pdp->update([
             'status' => Pdp::STATUS_AWAITING_PRESTATAIRE,
             'sent_to_prestataire_at' => now(),
         ]);
 
-        $this->logAudit($pdp, 'sent_to_prestataire', $request, [
-            'email' => $request->input('prestataire_email'),
-        ]);
+        $this->logAudit($pdp, 'sent_to_prestataire', $request);
 
-        // Pas d'envoi auto : le SALTI copie/colle le lien dans son mail
         return redirect()->route('pdp.edit', $pdp)
-            ->with('success', "✓ Lien magique généré (valable 7 jours).\nCopiez le lien ci-dessous et envoyez-le par mail au prestataire :\n".$pdp->magicLinkUrl());
+            ->with('success', '✓ Lien magique généré (valable 7 jours). Copiez-le depuis le bandeau ci-dessus et transmettez-le au prestataire.');
     }
 
     /**

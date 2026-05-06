@@ -936,18 +936,24 @@
         </div>
     </div>
 
-    {{-- Modal "Envoyer au prestataire" --}}
+    {{-- Modal "Générer le lien magique" --}}
     <div x-show="showSendModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showSendModal = false">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 class="text-lg font-bold mb-4">Envoyer le lien au prestataire</h3>
+            <h3 class="text-lg font-bold mb-2">Générer le lien magique</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Un lien d'accès unique sera créé pour le prestataire. Vous pourrez le copier-coller
+                dans votre propre email, SMS ou messagerie.
+            </p>
+            <ul class="text-xs text-gray-500 mb-4 space-y-1">
+                <li>• Validité : 7 jours</li>
+                <li>• Utilisable depuis n'importe quel appareil (PC, mobile, tablette)</li>
+                <li>• Régénérable à tout moment si le presta le perd</li>
+            </ul>
             <form method="POST" action="{{ route('pdp.send', $pdp) }}">
                 @csrf
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email du prestataire</label>
-                <input type="email" name="prestataire_email" required value="{{ $pdp->prestataire->email ?? '' }}" class="w-full border border-gray-300 rounded px-3 py-2 mb-4">
-                <p class="text-xs text-gray-500 mb-4">Le lien sera valable 7 jours. Le prestataire pourra remplir sa partie depuis n'importe quel appareil.</p>
                 <div class="flex justify-end gap-2">
                     <button type="button" @click="showSendModal = false" class="px-4 py-2 text-gray-600">Annuler</button>
-                    <button type="submit" class="bg-salti-yellow text-black font-semibold px-4 py-2 rounded">Envoyer le lien</button>
+                    <button type="submit" class="bg-salti-yellow text-black font-semibold px-4 py-2 rounded">🔗 Générer le lien</button>
                 </div>
             </form>
         </div>

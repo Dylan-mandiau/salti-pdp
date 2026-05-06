@@ -402,17 +402,15 @@
                                                 <td class="py-1.5 pr-2">{{ $label }}</td>
                                                 <td class="px-1">
                                                     <select data-path="permis_feu.mise_en_securite.{{ $slug }}.a_faire" class="border border-gray-200 rounded text-xs px-1 py-0.5">
-                                                        <option value="" @selected(($r['a_faire'] ?? null) === null || ($r['a_faire'] ?? null) === '')>—</option>
+                                                        <option value="non" @selected(($r['a_faire'] ?? 'non') !== 'oui')>NON</option>
                                                         <option value="oui" @selected(($r['a_faire'] ?? null) === 'oui')>OUI</option>
-                                                        <option value="non" @selected(($r['a_faire'] ?? null) === 'non')>NON</option>
                                                     </select>
                                                 </td>
                                                 <td class="px-1"><input type="text" data-path="permis_feu.mise_en_securite.{{ $slug }}.qui" value="{{ $r['qui'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5 w-24"></td>
                                                 <td class="px-1">
                                                     <select data-path="permis_feu.mise_en_securite.{{ $slug }}.fait" class="border border-gray-200 rounded text-xs px-1 py-0.5">
-                                                        <option value="" @selected(($r['fait'] ?? null) === null || ($r['fait'] ?? null) === '')>—</option>
+                                                        <option value="non" @selected(($r['fait'] ?? 'non') !== 'oui')>NON</option>
                                                         <option value="oui" @selected(($r['fait'] ?? null) === 'oui')>OUI</option>
-                                                        <option value="non" @selected(($r['fait'] ?? null) === 'non')>NON</option>
                                                     </select>
                                                 </td>
                                                 <td class="px-1"><input type="date" data-path="permis_feu.mise_en_securite.{{ $slug }}.fait_le" value="{{ $r['fait_le'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5"></td>
@@ -445,17 +443,15 @@
                                                 <td class="py-1.5 pr-2">{{ $label }}</td>
                                                 <td class="px-1">
                                                     <select data-path="permis_feu.moyens_prevention.{{ $slug }}.a_faire" class="border border-gray-200 rounded text-xs px-1 py-0.5">
-                                                        <option value="" @selected(($r['a_faire'] ?? null) === null || ($r['a_faire'] ?? null) === '')>—</option>
+                                                        <option value="non" @selected(($r['a_faire'] ?? 'non') !== 'oui')>NON</option>
                                                         <option value="oui" @selected(($r['a_faire'] ?? null) === 'oui')>OUI</option>
-                                                        <option value="non" @selected(($r['a_faire'] ?? null) === 'non')>NON</option>
                                                     </select>
                                                 </td>
                                                 <td class="px-1"><input type="text" data-path="permis_feu.moyens_prevention.{{ $slug }}.qui" value="{{ $r['qui'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5 w-24"></td>
                                                 <td class="px-1">
                                                     <select data-path="permis_feu.moyens_prevention.{{ $slug }}.fait" class="border border-gray-200 rounded text-xs px-1 py-0.5">
-                                                        <option value="" @selected(($r['fait'] ?? null) === null || ($r['fait'] ?? null) === '')>—</option>
+                                                        <option value="non" @selected(($r['fait'] ?? 'non') !== 'oui')>NON</option>
                                                         <option value="oui" @selected(($r['fait'] ?? null) === 'oui')>OUI</option>
-                                                        <option value="non" @selected(($r['fait'] ?? null) === 'non')>NON</option>
                                                     </select>
                                                 </td>
                                                 <td class="px-1"><input type="date" data-path="permis_feu.moyens_prevention.{{ $slug }}.fait_le" value="{{ $r['fait_le'] ?? '' }}" class="border border-gray-200 rounded text-xs px-1 py-0.5"></td>
