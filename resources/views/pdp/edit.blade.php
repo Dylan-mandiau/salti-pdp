@@ -464,11 +464,11 @@
             @php $allInterv = $pdp->intervenants()->orderBy('id')->get(); @endphp
             <div id="salti-intervenants" class="space-y-2">
                 @forelse($allInterv as $iv)
-                    <div class="border border-gray-200 rounded-lg p-3" data-iv-id="{{ $iv->id }}">
+                    <div class="border border-gray-200 rounded-lg p-3" data-iv-card data-iv-id="{{ $iv->id }}">
                         <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_60px] gap-2 md:items-center">
-                            <input type="text" data-iv-field="nom_prenom" data-iv-id="{{ $iv->id }}" value="{{ $iv->nom_prenom }}" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                            <input type="text" data-iv-field="habilitation" data-iv-id="{{ $iv->id }}" value="{{ $iv->habilitation }}" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
-                            <input type="date" data-iv-field="habilitation_validity" data-iv-id="{{ $iv->id }}" value="{{ $iv->habilitation_validity?->format('Y-m-d') }}" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="text" data-iv-field="nom_prenom" value="{{ $iv->nom_prenom }}" placeholder="Nom Prénom" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="text" data-iv-field="habilitation" value="{{ $iv->habilitation }}" placeholder="ex. CACES R489 cat 3" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
+                            <input type="date" data-iv-field="habilitation_validity" value="{{ $iv->habilitation_validity?->format('Y-m-d') }}" class="border border-gray-200 rounded px-2 py-1.5 text-sm">
                             <button type="button" onclick="deleteIntervenant({{ $iv->id }})"
                                     class="text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-1.5">
                                 🗑 Suppr
@@ -892,18 +892,23 @@
     const PDP_ID = {{ $pdp->id }};
     const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
-    // Auto-save sur input/change : envoi vers /pdp/{pdp}/intervenants (upsert)
+    // Auto-save sur input/change ET blur : envoi vers /pdp/{pdp}/intervenants (upsert)
+    // (blur capture le cas où l'utilisateur tape puis quitte directement sans modifier
+    //  la valeur via clavier — change ne se déclenche pas dans ce cas.)
     let ivSaveTimer = null;
-    document.querySelectorAll('[data-iv-id][data-iv-field]').forEach(el => {
-        el.addEventListener('change', () => {
-            clearTimeout(ivSaveTimer);
-            ivSaveTimer = setTimeout(() => saveIntervenantFromInput(el), 500);
+    document.querySelectorAll('[data-iv-card] [data-iv-field]').forEach(el => {
+        ['change', 'blur'].forEach(ev => {
+            el.addEventListener(ev, () => {
+                clearTimeout(ivSaveTimer);
+                ivSaveTimer = setTimeout(() => saveIntervenantFromInput(el), 300);
+            });
         });
     });
 
     async function saveIntervenantFromInput(el) {
-        const id = el.dataset.ivId;
-        const card = el.closest('[data-iv-id]');
+        const card = el.closest('[data-iv-card]');
+        if (!card) return;
+        const id = card.dataset.ivId || null;
         const payload = { id: id ? parseInt(id) : null };
         card.querySelectorAll('[data-iv-field]').forEach(input => {
             payload[input.dataset.ivField] = input.value;
@@ -918,8 +923,8 @@
             });
             const d = await r.json();
             if (d.id && ! id) {
-                card.setAttribute('data-iv-id', d.id);
-                card.querySelectorAll('[data-iv-field]').forEach(input => input.setAttribute('data-iv-id', d.id));
+                // Première sauvegarde : on stocke l'id retourné sur la card
+                card.dataset.ivId = d.id;
             }
         } catch (e) { console.error(e); }
     }
@@ -940,7 +945,8 @@
     function buildIntervenantCard() {
         const card = document.createElement('div');
         card.className = 'border border-gray-200 rounded-lg p-3';
-        card.setAttribute('data-iv-id', '');
+        card.setAttribute('data-iv-card', '');
+        card.dataset.ivId = ''; // sera rempli après la 1re sauvegarde
 
         const grid = document.createElement('div');
         grid.className = 'grid grid-cols-1 md:grid-cols-[1fr_1fr_180px_60px] gap-2 md:items-center';
@@ -955,7 +961,6 @@
             const input = document.createElement('input');
             input.type = f.type;
             input.dataset.ivField = f.field;
-            input.dataset.ivId = '';
             if (f.placeholder) input.placeholder = f.placeholder;
             input.className = 'border border-gray-200 rounded px-2 py-1.5 text-sm';
             grid.appendChild(input);
@@ -966,14 +971,24 @@
         delBtn.type = 'button';
         delBtn.textContent = '🗑 Suppr';
         delBtn.className = 'text-red-600 hover:text-red-800 text-sm border border-red-200 hover:bg-red-50 rounded px-2 py-1.5';
-        delBtn.addEventListener('click', () => card.remove());
+        delBtn.addEventListener('click', () => {
+            // Si déjà sauvegardé en BDD : appel API delete, sinon juste retirer le DOM
+            const id = card.dataset.ivId;
+            if (id) {
+                deleteIntervenant(parseInt(id));
+            } else {
+                card.remove();
+            }
+        });
         grid.appendChild(delBtn);
 
         card.appendChild(grid);
         inputs.forEach(input => {
-            input.addEventListener('change', () => {
-                clearTimeout(ivSaveTimer);
-                ivSaveTimer = setTimeout(() => saveIntervenantFromInput(input), 500);
+            ['change', 'blur'].forEach(ev => {
+                input.addEventListener(ev, () => {
+                    clearTimeout(ivSaveTimer);
+                    ivSaveTimer = setTimeout(() => saveIntervenantFromInput(input), 300);
+                });
             });
         });
         return { card, firstInput: inputs[0] };
