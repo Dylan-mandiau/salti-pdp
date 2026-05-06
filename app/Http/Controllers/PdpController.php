@@ -274,6 +274,66 @@ class PdpController extends Controller
     }
 
     /**
+     * Helper : retourne un fichier en mode preview (inline) si ?inline=1, sinon en download.
+     * Utilisé par les méthodes downloadXxx ci-dessous pour permettre le double bouton
+     * Consulter / Télécharger côté SALTI.
+     */
+    private function fileOrDownload(string $absolutePath, string $filename, Request $request)
+    {
+        if ($request->boolean('inline')) {
+            return response()->file($absolutePath, [
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            ]);
+        }
+        return response()->download($absolutePath, $filename);
+    }
+
+    /**
+     * Télécharge / Affiche le Permis feu pré-rempli (côté SALTI).
+     */
+    public function downloadPermisFeu(Pdp $pdp, Request $request, \App\Services\AnnexDocumentsGenerator $gen)
+    {
+        $this->authorizePdp($pdp);
+        $relativePath = $gen->generatePermisFeu($pdp);
+        return $this->fileOrDownload(storage_path('app/'.$relativePath), 'permis-feu-'.$pdp->uuid.'.pdf', $request);
+    }
+
+    /**
+     * Télécharge / Affiche la Convention de prêt pré-remplie (côté SALTI).
+     */
+    public function downloadConventionPret(Pdp $pdp, Request $request, \App\Services\AnnexDocumentsGenerator $gen)
+    {
+        $this->authorizePdp($pdp);
+        $relativePath = $gen->generateConventionPret($pdp);
+        return $this->fileOrDownload(storage_path('app/'.$relativePath), 'convention-pret-'.$pdp->uuid.'.pdf', $request);
+    }
+
+    /**
+     * Télécharge / Affiche le Plan d'accès de l'agence rattachée à ce PDP.
+     */
+    public function downloadPlanAcces(Pdp $pdp, Request $request)
+    {
+        $this->authorizePdp($pdp);
+        if (! $pdp->agency?->access_plan_path) abort(404);
+        return $this->fileOrDownload(
+            storage_path('app/'.$pdp->agency->access_plan_path),
+            $pdp->agency->access_plan_filename ?? 'plan-acces.pdf',
+            $request
+        );
+    }
+
+    /**
+     * Télécharge / Affiche un fichier uploadé par le prestataire (côté SALTI).
+     */
+    public function downloadDocument(Pdp $pdp, int $docId, Request $request)
+    {
+        $this->authorizePdp($pdp);
+        $doc = $pdp->documents()->where('id', $docId)->first();
+        if (! $doc) abort(404);
+        return $this->fileOrDownload(storage_path('app/'.$doc->path), $doc->original_filename, $request);
+    }
+
+    /**
      * Validation de la partie EE par SALTI (passage à "à signer").
      * Reste sur l'étape signatures (step=6) après validation.
      * BLOQUE si des erreurs critiques sont détectées par le PdpValidator.

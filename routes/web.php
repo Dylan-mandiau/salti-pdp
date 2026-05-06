@@ -46,6 +46,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/pdp/{pdp}/preview', [PdpController::class, 'preview'])->name('pdp.preview');
     Route::get('/pdp/{pdp}/download', [PdpController::class, 'download'])->name('pdp.download');
 
+    // Téléchargements / consultations des annexes côté SALTI (?inline=1 pour preview)
+    Route::get('/pdp/{pdp}/download/permis-feu', [PdpController::class, 'downloadPermisFeu'])->name('pdp.download.permis-feu');
+    Route::get('/pdp/{pdp}/download/convention-pret', [PdpController::class, 'downloadConventionPret'])->name('pdp.download.convention-pret');
+    Route::get('/pdp/{pdp}/download/plan-acces', [PdpController::class, 'downloadPlanAcces'])->name('pdp.download.plan-acces');
+    Route::get('/pdp/{pdp}/document/{doc}', [PdpController::class, 'downloadDocument'])->name('pdp.download.document');
+
     // Profil (Breeze par défaut)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -719,6 +719,153 @@
 
     </div>
 
+    {{-- ═══════════════════════════════════════════════════════════════════
+         Section Documents — visible à toutes les étapes
+         Permet à SALTI de consulter/télécharger tous les fichiers liés au PDP
+         (PDP principal, annexes pré-remplies, et uploads du prestataire)
+         ═══════════════════════════════════════════════════════════════════ --}}
+    @php
+        $allUploads = $pdp->documents()->orderBy('uploaded_by')->orderBy('type')->get();
+        $hasPermisFeu = $data['documents_remis_ee']['permis_feu'] ?? false;
+        $hasConventionPret = $data['documents_remis_ee']['convention_pret'] ?? false;
+        $hasPlanAcces = $pdp->agency?->access_plan_path && ($data['documents_remis_ee']['plan_acces'] ?? false);
+    @endphp
+    <details class="bg-white rounded-lg shadow-sm border border-gray-200 mt-6" open>
+        <summary class="cursor-pointer p-4 font-semibold text-gray-800 hover:bg-gray-50 rounded-lg">
+            📁 Documents — Plan de Prévention &amp; annexes
+            <span class="text-xs font-normal text-gray-500 ml-1">({{ 1 + ($hasPermisFeu ? 1 : 0) + ($hasConventionPret ? 1 : 0) + ($hasPlanAcces ? 1 : 0) + $allUploads->count() }})</span>
+        </summary>
+        <ul class="divide-y divide-gray-200 border-t border-gray-200">
+            {{-- PDP principal --}}
+            <li class="flex items-center justify-between gap-3 px-4 py-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="text-2xl flex-shrink-0">📋</span>
+                    <div class="min-w-0">
+                        <div class="font-medium text-sm truncate">Plan de Prévention</div>
+                        <div class="text-xs text-gray-500">
+                            @if($pdp->status === 'signed' || $pdp->status === 'archived')
+                                Signé par les 2 parties
+                            @elseif($pdp->signed_by_salti_at && ! $pdp->signed_by_prestataire_at)
+                                Signé SALTI — en attente prestataire
+                            @elseif(! $pdp->signed_by_salti_at && $pdp->signed_by_prestataire_at)
+                                Signé prestataire — en attente SALTI
+                            @else
+                                Version en cours
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-1.5 flex-shrink-0">
+                    <a href="{{ route('pdp.preview', $pdp) }}" target="_blank"
+                       class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">👁 <span class="hidden sm:inline">Consulter</span></a>
+                    <a href="{{ route('pdp.download', $pdp) }}"
+                       class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                </div>
+            </li>
+
+            {{-- Plan d'accès --}}
+            @if($hasPlanAcces)
+                <li class="flex items-center justify-between gap-3 px-4 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-2xl flex-shrink-0">🏢</span>
+                        <div class="min-w-0">
+                            <div class="font-medium text-sm truncate">Plan d'accès / circulation</div>
+                            <div class="text-xs text-gray-500">Agence {{ $pdp->agency->city ?? $pdp->agency->name }}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        <a href="{{ route('pdp.download.plan-acces', $pdp) }}?inline=1" target="_blank"
+                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">👁 <span class="hidden sm:inline">Consulter</span></a>
+                        <a href="{{ route('pdp.download.plan-acces', $pdp) }}"
+                           class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                    </div>
+                </li>
+            @endif
+
+            {{-- Permis feu --}}
+            @if($hasPermisFeu)
+                <li class="flex items-center justify-between gap-3 px-4 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-2xl flex-shrink-0">🔥</span>
+                        <div class="min-w-0">
+                            <div class="font-medium text-sm truncate">Permis feu</div>
+                            <div class="text-xs text-gray-500">Pré-rempli — formulaire PR0103-bis</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        <a href="{{ route('pdp.download.permis-feu', $pdp) }}?inline=1" target="_blank"
+                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">👁 <span class="hidden sm:inline">Consulter</span></a>
+                        <a href="{{ route('pdp.download.permis-feu', $pdp) }}"
+                           class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                    </div>
+                </li>
+            @endif
+
+            {{-- Convention de prêt --}}
+            @if($hasConventionPret)
+                <li class="flex items-center justify-between gap-3 px-4 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-2xl flex-shrink-0">📋</span>
+                        <div class="min-w-0">
+                            <div class="font-medium text-sm truncate">Convention de prêt de matériel</div>
+                            <div class="text-xs text-gray-500">Pré-remplie — formulaire PR0102</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        <a href="{{ route('pdp.download.convention-pret', $pdp) }}?inline=1" target="_blank"
+                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">👁 <span class="hidden sm:inline">Consulter</span></a>
+                        <a href="{{ route('pdp.download.convention-pret', $pdp) }}"
+                           class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                    </div>
+                </li>
+            @endif
+
+            {{-- Documents uploadés par le prestataire --}}
+            @forelse($allUploads as $doc)
+                <li class="flex items-center justify-between gap-3 px-4 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="text-2xl flex-shrink-0">
+                            @switch($doc->type)
+                                @case('caces')📜@break
+                                @case('autorisation_conduite')🚜@break
+                                @case('habilitation')⚡@break
+                                @case('permis_feu')🔥@break
+                                @case('fds')🧪@break
+                                @case('plan_acces')🏢@break
+                                @case('convention_pret')📋@break
+                                @default📄
+                            @endswitch
+                        </span>
+                        <div class="min-w-0">
+                            <div class="font-medium text-sm truncate">{{ $doc->original_filename }}</div>
+                            <div class="text-xs text-gray-500">
+                                @switch($doc->type)
+                                    @case('caces')CACES @break
+                                    @case('autorisation_conduite')Autorisation de conduite @break
+                                    @case('habilitation')Habilitation @break
+                                    @case('permis_feu')Permis feu (papier) @break
+                                    @case('fds')FDS @break
+                                    @case('plan_acces')Plan d'accès @break
+                                    @case('convention_pret')Convention de prêt @break
+                                    @default Autre @break
+                                @endswitch
+                                — {{ number_format($doc->size / 1024, 0) }} Ko — uploadé par {{ $doc->uploaded_by === 'prestataire' ? 'le prestataire' : 'SALTI' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        <a href="{{ route('pdp.download.document', ['pdp' => $pdp, 'doc' => $doc->id]) }}?inline=1" target="_blank"
+                           class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 rounded whitespace-nowrap">👁 <span class="hidden sm:inline">Consulter</span></a>
+                        <a href="{{ route('pdp.download.document', ['pdp' => $pdp, 'doc' => $doc->id]) }}"
+                           class="bg-salti-yellow hover:brightness-95 text-black text-sm font-semibold px-3 py-1.5 rounded whitespace-nowrap">📥 <span class="hidden sm:inline">Télécharger</span></a>
+                    </div>
+                </li>
+            @empty
+                <li class="px-4 py-3 text-xs text-gray-500 italic">Aucun document additionnel uploadé par le prestataire pour le moment.</li>
+            @endforelse
+        </ul>
+    </details>
+
     {{-- Navigation : 2 layouts (desktop full / mobile compact + menu actions) --}}
 
     {{-- Desktop : tout sur une ligne --}}
